@@ -195,6 +195,7 @@ footer .ct{color:var(--muted);font-weight:normal;font-size:13px;margin-top:2px}
 .estop.big{width:170px;height:170px;margin:6px auto}.estop:active{transform:scale(.94)}
 .mbox .atl{padding-right:50px}
 .esc{display:flex;gap:16px;align-items:center;border-color:var(--bad)}
+.smenu{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sitem{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-width:0;text-align:left;padding:10px 10px 10px 12px;min-height:76px}.sitem span{display:grid;gap:2px;min-width:0}.sitem b{font-size:15px;line-height:1.2}.sitem small{font-size:11.5px;line-height:1.25;color:var(--muted);font-weight:normal}.sitem i{font-style:normal;font-size:24px;font-weight:bold;color:var(--gold);line-height:1}
 </style>
 </head>
 <body>
@@ -213,7 +214,7 @@ footer .ct{color:var(--muted);font-weight:normal;font-size:13px;margin-top:2px}
   <button data-v="qa" onclick="go('qa')">Quality</button>
   <button data-v="scan" onclick="go('scan')">Scan</button>
   <button data-v="hist" onclick="go('hist')">History</button>
-  <button data-v="set" onclick="go('set')">Settings</button>
+  <button data-v="set" onclick="setTab='';go('set')">Settings</button>
 </nav>
 <div id="viewerNote" class="vnote" hidden>Camera, scan and file upload are switched off in this viewer. To use Scan and ↑ Attach file, open <b>Batch Q</b> in <b>Chrome</b>.</div>
 <main id="main"></main>
@@ -591,7 +592,7 @@ var AUTH=(function(){
   function signIn(){var now=Date.now();if(now<lockUntil)return msg('Too many wrong attempts. Try again in '+Math.ceil((lockUntil-now)/1000)+' seconds.');
     var u=g('gu').value.trim().toLowerCase(),p=g('gp').value,x=users().filter(function(z){return z.user===u;})[0];
     if(!x||x.hash!==hash(p,x.salt)){fails++;if(fails>=5){lockUntil=now+60000;fails=0;}return msg('Wrong username or password.');}
-    if(!x.active)return msg('This account is disabled. Contact the administrator.');
+    if(!x.active)return msg('This login is stopped. Ask the Admin.');
     if(mode==='dev'&&x.role!=='Developer')return msg('This is not a developer account.');
     if(mode==='admin'&&x.role!=='Administrator')return msg(x.role==='Developer'?'Developers sign in on the Developer screen.':'This is not an admin account. Use User sign in.');
     if(mode==='user'&&!isStaff(x.role))return msg((x.role==='Developer'?'Developers':'Admins')+' sign in on the '+(x.role==='Developer'?'Developer':'Admin')+' screen.');
@@ -600,7 +601,7 @@ var AUTH=(function(){
   function bar(){var b=g('hbar');if(b)b.innerHTML='<span class="hver">'+ver()+'</span><span class="huser">'+e(cur.name)+' · '+e(cur.role)+'</span><button class="sm" onclick="AUTH.logout()">Log Out</button>';}
   /* a login deleted or disabled on another phone (cloud) is signed out here too */
   function recheck(){if(!cur)return;var x=users().filter(function(z){return z.user===cur.user;})[0];
-    if(!x||!x.active){logout();if(window.toast)window.toast('Your login was removed or disabled. Contact the administrator.');return;}
+    if(!x||!x.active){logout();if(window.toast)window.toast('Your login was deleted or stopped. Ask the Admin.');return;}
     if(x.role!==cur.role||x.name!==cur.name){cur=x;bar();}}
   function logout(){if(G){cur=null;return toGate();}cur=null;mode=null;setSess(null);loginScreen();show();if(cfg.onLogout)cfg.onLogout();}
   /* --- users panel (administrator) and own password (everyone) --- */
@@ -609,14 +610,14 @@ var AUTH=(function(){
     '<button class="pri" onclick="AUTH.changePw()">Change</button><div id="amsg" class="gmsg"></div></div>';}
   function changePw(){var a=g('amsg'),p0=g('ap0').value,p1=g('ap1').value,us=users(),x=us.filter(function(z){return z.user===cur.user;})[0];
     if(!x||x.hash!==hash(p0,x.salt)){a.style.color='var(--bad)';a.textContent='The current password is wrong.';return;}
-    if(p1.length<6){a.style.color='var(--bad)';a.textContent='New password: at least 6 characters.';return;}
+    if(p1.length<6){a.style.color='var(--bad)';a.textContent='The new password needs at least 6 characters.';return;}
     x.salt=salt();x.hash=hash(p1,x.salt);saveUsers(us);keyPut(x.user,p1,x.role,x.active);cur=x;g('ap0').value='';g('ap1').value='';a.style.color='var(--ok)';a.textContent='Password changed.';}
   function usersPanel(){if(!isAdmin())return '';var us=users().filter(function(x){return isDev()||x.role!=='Developer';}),
       roles=staffRoles().concat(isDev()?['Administrator','Developer']:[]);
-    return '<h2>User Logins</h2>'+
-      us.map(function(x){return '<div class="card ucard"><div class="uhd"><b>'+e(x.name)+'</b>'+(x.active?'<span class="badge b-ok">Active</span>':'<span class="badge b-bad">Disabled</span>')+'</div>'+
+    return '<h2>Users</h2>'+
+      us.map(function(x){return '<div class="card ucard"><div class="uhd"><b>'+e(x.name)+'</b>'+(x.active?'<span class="badge b-ok">Active</span>':'<span class="badge b-bad">Stopped</span>')+'</div>'+
         '<div class="note">Username <span class="mono">'+e(x.user)+'</span> · '+e(x.role)+'</div>'+
-        (x.user===cur.user?'<div class="note">This is you.</div>':!canManage(x)?'<div class="note">Managed by the developer.</div>':'<div class="acts"><button class="sm" onclick="AUTH.toggle(\''+x.id+'\')">'+(x.active?'Disable':'Enable')+'</button><button class="sm" onclick="AUTH.reset(\''+x.id+'\')">Reset</button><button class="sm bad" onclick="AUTH.del(\''+x.id+'\')">Delete</button></div>')+'</div>';}).join('')+
+        (x.user===cur.user?'<div class="note">This is you.</div>':!canManage(x)?'<div class="note">Managed by the developer.</div>':'<div class="acts"><button class="sm" onclick="AUTH.toggle(\''+x.id+'\')">'+(x.active?'Stop':'Allow')+'</button><button class="sm" onclick="AUTH.reset(\''+x.id+'\')">Reset</button><button class="sm bad" onclick="AUTH.del(\''+x.id+'\')">Delete</button></div>')+'</div>';}).join('')+
       '<div class="card form2"><h3>+ User</h3><div class="two"><label>Full name<input id="un"></label><label>Username<input id="uu" autocapitalize="none"></label></div>'+
       '<div class="two"><label>Password<input id="up" type="password" autocomplete="new-password"></label><label>Role<select id="ur">'+roles.map(function(r){return '<option>'+e(r)+'</option>';}).join('')+'</select></label></div>'+
       '<button class="pri" onclick="AUTH.add()">+ User</button><div id="umsg" class="gmsg"></div><div class="note" style="margin-top:8px">'+e(staffRoles().join(' and '))+' accounts cannot open the business settings, users or backup, or add and edit ingredients and recipes.</div></div>';}
@@ -633,7 +634,7 @@ var AUTH=(function(){
     x.active=!x.active;saveUsers(us);keySet(x.user,{active:x.active});if(cfg.refresh)cfg.refresh();}
   function reset(id){var us=users(),x=us.filter(function(z){return z.id===id;})[0];if(!canManage(x))return;
     var tmp=String(Math.floor(100000+Math.random()*900000));x.salt=salt();x.hash=hash(tmp,x.salt);saveUsers(us);keyPut(x.user,tmp,x.role,x.active);if(cfg.refresh)cfg.refresh();
-    setTimeout(function(){umsg('New password for '+x.user+': '+tmp+' — give it to the user and ask them to change it in My account.',true);},0);}
+    setTimeout(function(){umsg('New password for '+x.user+': '+tmp+'. Give it to the user and ask them to change it in My Account.',true);},0);}
   /* eye button on every password box: tap to show / hide the password */
   var EYE='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3.3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
       EYE_OFF='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3.3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 3 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
@@ -890,7 +891,7 @@ function vReqNew(){const r=rq.rec&&recipe(rq.rec),bu=r?(r.unit||'L'):'L',{wa,em}
      <label>Notes<input value="${esc(rq.note)}" placeholder="e.g. urgent" oninput="rq.note=this.value"></label>
      <div class="note" style="margin-bottom:10px">Requested by: <b>${esc(me()||'—')}</b></div>
      <div class="acts" style="margin-top:0"><button class="pri" ${wa?'':'disabled'} onclick="sendNew('wa')">Send 💬</button><button class="pri" ${em?'':'disabled'} onclick="sendNew('mail')">Send 📧</button><button onclick="saveReq()">Save</button></div>
-     ${wa&&em?'':`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="go(\'set\')">Settings</a>.':'The Admin has not set the requisition WhatsApp number and email yet. You can Save the requisition and send it later.'}</div>`}</div>`;}
+     ${wa&&em?'':`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="setTab=\'biz\';go(\'set\')">Settings → Business</a>.':'The Admin has not set the requisition WhatsApp number and email yet. You can Save the requisition and send it later.'}</div>`}</div>`;}
   return o;}
 function makeReq(){const r=recipe(rq.rec);if(!r){toast('Select the product');return null;}if(!(rq.size>0)){toast('Select the batch size');return null;}
   const P=plan(r,rq.size);if(P.some(p=>p.missing)){toast('Fix the recipe first: an ingredient is missing');return null;}
@@ -991,7 +992,7 @@ function vReqView(){const r=reqById(param);if(!r)return nf();const b=batchById(r
   <div class="acts">${r.status!=='cancel'?`<button class="pri" ${wa?'':'disabled'} onclick="sendVia(reqById('${r.id}'),'wa')">Send 💬</button><button class="pri" ${em?'':'disabled'} onclick="sendVia(reqById('${r.id}'),'mail')">Send 📧</button>`:''}
    ${live?`<button onclick="rcvFromReq('${r.id}')">Receive</button>`:''}${live&&!b?`<button class="pri" onclick="startBatch('${r.id}')">Start</button>`:''}${b?`<button onclick="go('batch','${b.id}')">Batch</button>`:''}
    ${A()&&live&&!b?`<button class="bad" onclick="cancelReq('${r.id}')">Cancel</button>`:''}</div>
-  ${r.status!=='cancel'&&!(wa&&em)?`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="go(\'set\')">Settings</a>.':'The Admin has not set the requisition WhatsApp number and email yet.'}</div>`:''}`;}
+  ${r.status!=='cancel'&&!(wa&&em)?`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="setTab=\'biz\';go(\'set\')">Settings → Business</a>.':'The Admin has not set the requisition WhatsApp number and email yet.'}</div>`:''}`;}
 async function cancelReq(id){const r=reqById(id);if(!A()||!r||r.batch)return;if(!(await ask('Cancel requisition '+r.no+'? It stays in the list as Cancelled.','Yes')))return;
   r.status='cancel';save();render();toast('Requisition cancelled');}
 
@@ -1103,7 +1104,8 @@ function saveItem(id){if(!A())return;const name=$('eN').value.trim();if(!name)re
 async function delItem(id){const it=item(id);if(!A()||!it)return;if(!(await ask('Delete ingredient '+it.name+'?')))return;S.items=S.items.filter(i=>i.id!==id);save();go('items');toast('Ingredient deleted');}
 
 /* ================= RECIPES ================= */
-function vRecipes(){return `<h2>Recipes</h2>${A()?`<div class="acts" style="margin:0 0 12px"><button class="pri" onclick="openRec('new:Syrups')">+ Recipe</button></div>`:''}
+function recFull(){return S.recipes.length>=MAX_REC;}
+function vRecipes(){return `<h2>Recipes</h2><div class="note" style="margin:-4px 0 10px">${S.recipes.length} of ${MAX_REC} recipes used (Toppings, Syrups and Puree together).</div>${A()?`<div class="acts" style="margin:0 0 12px"><button class="pri" ${recFull()?'disabled':''} onclick="openRec('new:Syrups')">+ Recipe</button></div>${recFull()?`<div class="card note">${REC_FULL}</div>`:''}`:''}
   ${RCATS.map(c=>{const l=S.recipes.filter(r=>r.cat===c).sort((a,b)=>a.name.localeCompare(b.name));
     return `<h2>${c}</h2>${l.length?`<div class="grid">${l.map(r=>`<button class="opt" onclick="go('recipe','${r.id}')">${esc(r.name)}<div class="note">${r.lines.length} ingredients · per 1 ${r.unit||'L'}</div></button>`).join('')}</div>`:`<div class="card note">No ${c.toLowerCase()} recipes yet.</div>`}`;}).join('')}`;}
 function vRecipe(){const r=recipe(param);if(!r)return nf();
@@ -1246,22 +1248,46 @@ function shareHist(via){if(via==='wa'){fileBox('Send by WhatsApp',new File([xlHi
   else{const t=histText(80);shareBox('Send by email','mailto:?subject='+encodeURIComponent('Ingredient movement report — '+S.set.biz)+'&body='+encodeURIComponent(t),'Open email app',t,'');}}
 
 /* ================= SETTINGS ================= */
-function vSet(){const ad=A(),dv=AUTH.isDev();return `${AUTH.accountPanel()}${ad?AUTH.usersPanel():''}
-  ${ad?`<h2>Business Settings</h2><div class="card form2">
-  <label>Business name (used in requisitions and reports)<input id="tB" value="${esc(S.set.biz)}"></label>
-  <div class="two"><label>Requisition WhatsApp number<input id="tRP" type="tel" value="${esc(S.set.reqPhone)}" placeholder="e.g. 0771234567"></label><label>Requisition email<input id="tRE" type="email" value="${esc(S.set.reqEmail)}"></label></div>
-  <div class="two"><label>Country code for WhatsApp numbers<input id="tC" value="${esc(S.set.cc)}" inputmode="numeric"></label><label>Warn when expiry is within (days)<input id="tW" type="number" min="1" value="${S.set.warn}"></label></div>
+let setTab='';
+/* Settings: a menu of sections; each section opens on its own page with ← Settings */
+function setSecs(){const ad=A(),dv=AUTH.isDev();return [
+ ['acc','My Account','Your name and password',true],
+ ['users','Users','Add, stop or delete logins',ad],
+ ['biz','Business','Name, WhatsApp and email',ad],
+ ['req','Requisitions','Where requisitions are sent',!ad],
+ ['equip','Equipment','Tanks, lines and fillers',ad],
+ ['qual','Quality','Check times and limits',ad],
+ ['imp','Import','Read ingredients from a file',ad],
+ ['demo','Demo Data','Remove the sample data',ad&&!!S.demo],
+ ['cloud','Cloud','Share data between phones',dv],
+ ['bak','Backup','↓ Backup and ↑ Restore all data',ad],
+ ['dev','Developer','Version, data and reset',dv]].filter(x=>x[3]);}
+function setBack(){return `<div class="acts top"><button onclick="setTab='';render()">← Settings</button></div>`;}
+function vSet(){const sec=setSecs().find(x=>x[0]===setTab);
+  if(!sec){setTab='';return `<h2>Settings</h2><div class="smenu">${setSecs().map(x=>`<button class="sitem" onclick="setTab='${x[0]}';render()"><span><b>${x[1]}</b><small>${x[2]}</small></span><i>›</i></button>`).join('')}</div>`;}
+  const back=setBack();
+  switch(setTab){
+   case 'acc':return back+AUTH.accountPanel();
+   case 'users':return back+AUTH.usersPanel();
+   case 'biz':return back+`<h2>Business</h2><div class="card form2">
+  <label>Business name (shown on requisitions and reports)<input id="tB" value="${esc(S.set.biz)}"></label>
+  <div class="two"><label>WhatsApp number for requisitions<input id="tRP" type="tel" value="${esc(S.set.reqPhone)}" placeholder="e.g. 0771234567"></label><label>Email for requisitions<input id="tRE" type="email" value="${esc(S.set.reqEmail)}"></label></div>
+  <div class="two"><label>Country code for WhatsApp numbers<input id="tC" value="${esc(S.set.cc)}" inputmode="numeric"></label><label>Expiry warning (days before)<input id="tW" type="number" min="1" value="${S.set.warn}"></label></div>
   <label>Weight limit (± %)<input id="tT" type="number" min="0" step="any" inputmode="decimal" value="${S.set.tol}"></label>
-  <button class="pri" onclick="saveSet()">Save</button></div>`:`<h2>Requisitions</h2><div class="card form2 note">Requisitions are sent to WhatsApp <b>${esc(S.set.reqPhone||'—')}</b> and email <b>${esc(S.set.reqEmail||'—')}</b>. Only the Admin can change them.</div>`}
-  ${qaSettings()}
-  ${ad?`<h2>Import Ingredients</h2><div class="card form2"><p class="note" style="margin-top:0">Scan or upload an ingredient list, order form or label (PDF, PNG or JPG). Ingredient names, quantities and units are read for you to check and add to Ingredients. Reading needs an internet connection.</p>
-    <div class="acts"><button class="pri" onclick="pickDoc('items',true)">Scan</button><button onclick="pickDoc('items',false)">↑ Attach File</button></div></div>
-  ${S.demo?`<h2>Demo Data</h2><div class="card form2"><p class="note" style="margin-top:0">This app contains demo lots, requisitions, batches and movements so you can try it. Remove them before real use. Ingredients and recipes are kept.</p><button class="bad" onclick="clearDemo()">Remove Demo</button></div>`:''}
-  <h2>Backup</h2><div class="card form2"><p class="note" style="margin-top:0">All data is stored on this device only. Export a backup file regularly and keep it safe. Importing a backup replaces all data on this device.</p>
-  <div class="acts"><button class="pri" onclick="exportData()">↓ Backup</button><button onclick="$('impBk').click()">↑ Restore</button><input id="impBk" type="file" accept=".json,application/json" hidden onchange="importData(this.files[0])"></div></div>`:''}
-  ${dv?`<h2>Developer</h2>${cloudCard()}<div class="card form2"><div class="kv" style="margin-top:0"><span>Version</span><b>Batch Q uF 1.0.0 Lite</b><span>Data key</span><b class="mono">${KEY}</b><span>Ingredients</span><b>${S.items.length}</b><span>Recipes</span><b>${S.recipes.length}</b><span>Lots</span><b>${S.lots.length}</b><span>Requisitions</span><b>${S.reqs.length}</b><span>Batches</span><b>${S.batches.length}</b><span>Movements</span><b>${S.moves.length}</b></div>
-   <p class="note">Reset erases every lot, requisition, batch and movement and restores the original ingredient and recipe list. User logins are kept.</p>
-   <div class="acts"><button class="bad" onclick="devReset()">Reset</button></div></div>`:''}`;}
+  <button class="pri" onclick="saveSet()">Save</button></div>`;
+   case 'req':return back+`<h2>Requisitions</h2><div class="card form2 note">Requisitions are sent to WhatsApp <b>${esc(S.set.reqPhone||'—')}</b> and email <b>${esc(S.set.reqEmail||'—')}</b>. Only the Admin can change them.</div>`;
+   case 'equip':return back+eqPanel();
+   case 'qual':return back+qsPanel();
+   case 'imp':return back+`<h2>Import</h2><div class="card form2"><p class="note" style="margin-top:0">Scan or attach an ingredient list, order form or label (PDF or photo). The app reads the names, amounts and units. Check them, then add them to Ingredients. This needs the internet.</p>
+    <div class="acts"><button class="pri" onclick="pickDoc('items',true)">Scan</button><button onclick="pickDoc('items',false)">↑ Attach File</button></div></div>`;
+   case 'demo':return back+`<h2>Demo Data</h2><div class="card form2"><p class="note" style="margin-top:0">This app has sample lots, requisitions, batches and movements so you can try it. Remove them before real use. Ingredients and recipes stay.</p><button class="bad" onclick="clearDemo()">Remove Demo</button></div>`;
+   case 'cloud':return back+`<h2>Cloud</h2>${cloudCard()}`;
+   case 'bak':return back+`<h2>Backup</h2><div class="card form2"><p class="note" style="margin-top:0">Make a backup file often and keep it safe. Restore puts back a backup file and replaces all data on this phone.</p>
+  <div class="acts"><button class="pri" onclick="exportData()">↓ Backup</button><button onclick="$('impBk').click()">↑ Restore</button><input id="impBk" type="file" accept=".json,application/json" hidden onchange="importData(this.files[0])"></div></div>`;
+   case 'dev':return back+`<h2>Developer</h2><div class="card form2"><div class="kv" style="margin-top:0"><span>Version</span><b>Batch Q uF 1.0.0 Lite</b><span>Data key</span><b class="mono">${KEY}</b><span>Ingredients</span><b>${S.items.length}</b><span>Recipes</span><b>${S.recipes.length} of ${MAX_REC}</b><span>Lots</span><b>${S.lots.length}</b><span>Requisitions</span><b>${S.reqs.length}</b><span>Batches</span><b>${S.batches.length}</b><span>Movements</span><b>${S.moves.length}</b></div>
+   <p class="note">Reset deletes every lot, requisition, batch and movement and puts back the first ingredient and recipe list. User logins stay.</p>
+   <div class="acts"><button class="bad" onclick="devReset()">Reset</button></div></div>`;}
+  return back;}
 async function clearDemo(){if(!A())return;if(!(await ask('Remove all demo lots, requisitions, batches and movements? Ingredients and recipes are kept.')))return;
   S.lots=[];S.moves=[];S.reqs=[];S.batches=[];S.seq.LOT={};S.seq.REQ={};S.seq.GRN={};S.seq.BAT={};['cip','devs','samples','cal','train','audit','cc'].forEach(k=>S[k]=[]);S.seq.DEV=0;S.seq.CC=0;S.demo=false;
   rcv=newRcv();lastGrn=null;save();go('prod');toast('Demo data removed');}
@@ -1271,6 +1297,7 @@ function saveSet(){if(!A())return;const e=$('tRE').value.trim();if(e&&!EMAIL_RE.
   Object.assign(S.set,{biz:$('tB').value.trim()||'MCR Concept',reqPhone:$('tRP').value.trim(),reqEmail:e,cc:$('tC').value.replace(/\D/g,'')||'94',warn:Math.max(1,+$('tW').value||30),tol:Math.max(0,+$('tT').value||0)});audit('Settings saved','','');save();render();toast('Settings saved');}
 function exportData(){if(!A())return;saveFile('batch-q-backup-'+today()+'.json',JSON.stringify(S,null,1));}
 function importData(f){if(!A()||!f)return;const rd=new FileReader();rd.onload=async()=>{try{const d=JSON.parse(rd.result);if(!Array.isArray(d.items)||!Array.isArray(d.lots)||!Array.isArray(d.recipes)||!d.set)throw 0;
+  if(d.recipes.length>MAX_REC)return toast('This backup has '+d.recipes.length+' recipes. '+REC_NAME+' holds up to '+MAX_REC+'.');
   if(!(await ask(`Replace all data with this backup? (${d.items.length} ingredients, ${d.recipes.length} recipes, ${d.lots.length} lots)`)))return;S=fix(d);save();go('prod');toast('Backup imported');}catch(e){toast('This is not a valid backup file');}};rd.readAsText(f);}
 
 /* ================= DOCUMENT IMPORT (label / list → ingredients) ================= */
@@ -1327,7 +1354,7 @@ function parseDoc(text){
 function buildImp(file,text){const p=parseDoc(text);imp={file,text,items:p.items.map(x=>({on:!x.match,name:x.name,qty:x.qty,unit:x.unit,match:x.match,cat:'RM'}))};}
 function reImp(){const t=$('impT').value,f=imp?imp.file:'document';buildImp(f,t);render();toast('Text read again');}
 function vImp(){if(!imp)return nf();
-  return `<div class="acts top"><button onclick="imp=null;go('set')">← Back</button></div><h2>Check Imported Data</h2><div class="note" style="margin-bottom:10px">From: ${esc(imp.file)}. Check and correct everything before saving.</div>
+  return `<div class="acts top"><button onclick="imp=null;setTab='imp';go('set')">← Back</button></div><h2>Check Imported Data</h2><div class="note" style="margin-bottom:10px">From: ${esc(imp.file)}. Check and correct everything before saving.</div>
   <div class="card scroll"><h3>Ingredients found (${imp.items.length})</h3>
    ${imp.items.length?`<table><thead><tr><th>Add</th><th>Name in document</th><th>Unit</th><th>Category</th></tr></thead><tbody>
    ${imp.items.map((r,i)=>`<tr><td><input type="checkbox" style="width:24px;min-height:0;accent-color:var(--gold)" ${r.on?'checked':''} ${r.match?'disabled':''} onchange="imp.items[${i}].on=this.checked"></td>
@@ -1336,7 +1363,7 @@ function vImp(){if(!imp)return nf();
     <td style="min-width:180px"><select onchange="imp.items[${i}].cat=this.value">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${k===r.cat?'selected':''}>${v}</option>`).join('')}</select></td></tr>`).join('')}
    </tbody></table>`:'<div class="note">No lines with a quantity and unit were found. Correct the text below and tap Read again, or add ingredients in Ingredients.</div>'}</div>
   <div class="card"><h3>Text from the Document</h3><textarea id="impT">${esc(imp.text)}</textarea><div class="acts"><button onclick="reImp()">Read Again</button></div></div>
-  <div class="acts"><button class="pri big" onclick="saveImp()">Save</button><button onclick="imp=null;go('set')">Cancel</button></div>`;}
+  <div class="acts"><button class="pri big" onclick="saveImp()">Save</button><button onclick="imp=null;setTab='imp';go('set')">Cancel</button></div>`;}
 function saveImp(){if(!A())return;let ni=0;
   for(const r of imp.items.filter(r=>r.on&&!r.match&&r.name.trim())){const nm=r.name.trim();if(S.items.some(i=>i.name.toLowerCase()===nm.toLowerCase()))continue;
     S.items.push({id:rid(),key:null,ini:initials(nm),sku:takeSku(nm),name:nm,cat:r.cat,unit:r.unit,notes:'Imported from '+imp.file,created:Date.now()});ni++;}
@@ -1472,6 +1499,7 @@ document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#pk
 
 /* ================= BATCH Q uF 1.0.0 — QUALITY FORMS (Lite and Pro share this file; EDITION decides) ================= */
 const EDITION='lite',PRO=EDITION==='pro';
+const MAX_REC=PRO?30:18,REC_NAME=PRO?'Batch Q uF Pro':'Batch Q uF Lite',REC_FULL=REC_NAME+' holds up to '+MAX_REC+' recipes. To add a new one, delete a recipe first'+(PRO?'.':', or use Batch Q uF Pro for more recipes.');
 const TASKS={weigh:'Weighing',clear:'Line check',cip:'Cleaning',qc:'Quality checks',bottle:'Bottling',recv:'Goods check'};
 const STAGES=['After sugar dissolves','Heating (CCP)','After adding acid','After flavour and colour','Before bottling','Other'];
 const CIP_METHODS=['CIP (caustic + acid rinse)','CIP (caustic + hot water rinse)','Manual clean + sanitise','Hot water rinse only'];
@@ -1738,7 +1766,7 @@ function vReqView(){const r=reqById(param);if(!r)return nf();const b=batchById(r
    ${live?`<button onclick="rcvFromReq('${r.id}')">Receive</button>`:''}${live&&!r.disp?`<button onclick="startDisp('${r.id}')">Issue</button>`:''}${r.disp?`<button onclick="pdfOut(()=>dispPdf('${r.id}'),'Dispensing-${esc(r.no)}.pdf')">↓ Issue Log</button>`:''}
    ${live&&!b?`<button class="pri" onclick="startBatch('${r.id}')">Start</button>`:''}${b?`<button onclick="go('batch','${b.id}')">Batch</button>`:''}
    ${A()&&live&&!b?`<button class="bad" onclick="cancelReq('${r.id}')">Cancel</button>`:''}</div>
-  ${r.status!=='cancel'&&!(wa&&em)?`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="go(\'set\')">Settings</a>.':'The Admin has not set the requisition WhatsApp number and email yet.'}</div>`:''}`;}
+  ${r.status!=='cancel'&&!(wa&&em)?`<div class="note" style="margin-top:8px">${A()?'Set the requisition WhatsApp number and email in <a onclick="setTab=\'biz\';go(\'set\')">Settings → Business</a>.':'The Admin has not set the requisition WhatsApp number and email yet.'}</div>`:''}`;}
 
 /* ================= PRODUCTION LIST ================= */
 function vProd(){const lines=PRO?S.set.lines.split(',').map(x=>x.trim()).filter(Boolean):[],lf=window.lineF||'';
@@ -1993,16 +2021,17 @@ function tracePdf(id){const b=batchById(id),u=(b.bottling||[]).reduce((s,x)=>s+x
     {table:{head:['Ingredient','Our lot no.','GRN','Received','Expiry','Qty used'],widths:[28,16,14,13,13,16],rows:traceRows(b)}}]);}
 
 /* ================= SETTINGS: equipment and quality settings ================= */
-function qaSettings(){if(!A())return '';const eq=S.equip;
+function eqPanel(){if(!A())return '';const eq=S.equip;
   return `<h2>Equipment</h2><div class="card scroll"><table><thead><tr><th>Code</th><th>Name</th><th>Type</th>${PRO?'<th>Line</th>':''}<th>Active</th><th></th></tr></thead><tbody>
   ${eq.map(e=>`<tr><td class="mono">${esc(e.code)}</td><td>${esc(e.name)}</td><td>${esc(e.type)}</td>${PRO?`<td>${esc(e.line||'—')}</td>`:''}<td>${e.active===false?'No':'Yes'}</td><td><button class="sm" onclick="editEq('${e.id}')">Edit</button></td></tr>`).join('')||`<tr><td colspan="6" class="note">No equipment yet.</td></tr>`}
-  </tbody></table><div class="acts"><button class="pri" onclick="editEq('')">+ Equipment</button></div></div>
-  <h2>Quality Settings</h2><div class="card form2">
+  </tbody></table><div class="acts"><button class="pri" onclick="editEq('')">+ Equipment</button></div></div>`;}
+function qsPanel(){if(!A())return '';
+  return `<h2>Quality Settings</h2><div class="card form2">
    <div class="two"><label>Check every (hours)<input id="qI" type="number" step="any" value="${S.set.ipqcH}"></label><label>Yield limit (± %)<input id="qY" type="number" step="any" value="${S.set.yTol}"></label></div>
-   <div class="two"><label>Bottle size (mL)<input id="qB" type="number" value="${S.set.bottle}"></label>${PRO?`<label>ATP swab limit (RLU)<input id="qA" type="number" value="${S.set.atp}"></label>`:'<span></span>'}</div>
+   <div class="two"><label>Bottle size (mL)<input id="qB" type="number" value="${S.set.bottle}"></label>${PRO?`<label>Swab test limit (ATP, RLU)<input id="qA" type="number" value="${S.set.atp}"></label>`:'<span></span>'}</div>
    ${PRO?`<label>Production lines (use commas)<input id="qL" value="${esc(S.set.lines)}" placeholder="e.g. Line 1, Line 2"></label>
    <div class="two"><label>Serving size (mL)<input id="qS" type="number" value="${S.set.serving}"></label><label>Bottle size for nutrition (mL)<input id="qC" type="number" value="${S.set.container}"></label></div>
-   <div class="note" style="margin:4px 0 6px;color:var(--gold)"><b>Alerts (CCP fail, batch on hold)</b></div>
+   <div class="note" style="margin:4px 0 6px;color:var(--gold)"><b>Alerts (CCP fail or batch on hold)</b></div>
    <div class="two"><label>QA Manager WhatsApp<input id="qQP" type="tel" value="${esc(S.set.qaPhone)}"></label><label>QA Manager email<input id="qQE" type="email" value="${esc(S.set.qaEmail)}"></label></div>
    <div class="two"><label>Plant Manager WhatsApp<input id="qPP" type="tel" value="${esc(S.set.pmPhone)}"></label><label>Plant Manager email<input id="qPE" type="email" value="${esc(S.set.pmEmail)}"></label></div>
    <div class="note" style="margin:4px 0 6px;color:var(--gold)"><b>Cost</b></div>
@@ -2032,7 +2061,7 @@ function vRecipe(){const r=recipe(param);if(!r)return nf();const sp=r.spec||{},a
   </tbody></table><div class="note" style="margin-top:8px">Water is not taken from the store.</div></div>
   ${PRO&&r.history.length?`<h2>Versions</h2><div class="card scroll"><table><thead><tr><th>Version</th><th>Date</th><th>Change no.</th><th>By</th></tr></thead><tbody>${r.history.map(h=>`<tr><td>${h.v}</td><td>${fdt(h.t)}</td><td class="mono">${esc(h.cc||'—')}</td><td>${esc(h.by||'')}</td></tr>`).join('')}</tbody></table></div>`:''}
   <div class="acts"><button class="pri" onclick="newReq('${r.id}')">+ Requisition</button>${A()?`<button onclick="openRec('${r.id}')">Edit</button>`:''}${PRO?`<button onclick="nuR='${r.id}';go('nutri')">Nutrition</button>`:''}</div>`;}
-function openRec(p){if(!A())return;if(String(p).startsWith('new:'))pe={id:null,cat:p.slice(4),name:'',unit:'L',lines:[{item:'',qty:'',unit:'g'}],waterG:0,spec:{brix:57,brixMin:56.5,brixMax:57.5,phMin:3.1,phMax:3.4,ppmMax:250,colour:'Matches approved standard',ccpTemp:80,shelf:12,ec:'',tpc:1000,ym:100},cc:''};
+function openRec(p){if(!A())return;if(String(p).startsWith('new:')&&recFull())return toast(REC_NAME+' holds up to '+MAX_REC+' recipes');if(String(p).startsWith('new:'))pe={id:null,cat:p.slice(4),name:'',unit:'L',lines:[{item:'',qty:'',unit:'g'}],waterG:0,spec:{brix:57,brixMin:56.5,brixMax:57.5,phMin:3.1,phMax:3.4,ppmMax:250,colour:'Matches approved standard',ccpTemp:80,shelf:12,ec:'',tpc:1000,ym:100},cc:''};
   else{const r=recipe(p);if(!r)return;pe=JSON.parse(JSON.stringify(r));pe.cc='';}go('recEdit');}
 function vRecEdit(){if(!pe)return nf();const sp=pe.spec,ccs=S.cc.filter(c=>c.status==='Approved');const n=(k,l,st)=>`<label>${l}<input type="number" step="${st||'any'}" inputmode="decimal" value="${esc(sp[k])}" oninput="pe.spec.${k}=this.value"></label>`;
   return `<div class="acts top"><button onclick="recBack()">← Back</button></div><h2>${pe.id?'Edit recipe':'Add recipe'}</h2>
@@ -2059,6 +2088,7 @@ function saveRec(){if(!A())return;const name=pe.name.trim();if(!name)return toas
   if(S.recipes.some(r=>r.name.toLowerCase()===name.toLowerCase()&&r.id!==pe.id))return toast('A recipe with this name already exists');
   const sp={};Object.keys(pe.spec).forEach(k=>{const v=pe.spec[k];sp[k]=['colour','ec'].includes(k)?String(v||''):(v===''||v==null?(k==='ccpTemp'?0:0):+v);});
   if(!(sp.brixMin<=sp.brix&&sp.brix<=sp.brixMax))return toast('Target Brix must be between the lowest and highest');if(!(sp.phMin<sp.phMax))return toast('Lowest pH must be below highest pH');
+  if(!pe.id&&recFull())return toast(REC_NAME+' holds up to '+MAX_REC+' recipes');
   const old=pe.id&&recipe(pe.id);let cc=null;if(PRO&&old){cc=S.cc.find(c=>c.id===pe.cc&&c.status==='Approved');if(!cc)return toast('Select an approved change');}
   const r={id:pe.id||'p'+rid(),cat:pe.cat,name,unit:pe.unit,lines,waterG:+pe.waterG||0,spec:sp,version:old?(old.version||1)+(PRO?1:0):1,history:old?(old.history||[]).slice():[]};
   if(PRO&&old){r.history.push({v:old.version||1,t:Date.now(),cc:cc.no,by:me(),lines:old.lines,spec:old.spec});cc.status='Implemented';cc.impl=today();cc.recipe=r.id;}
@@ -2208,7 +2238,7 @@ function alertOut(ref){if(!PRO)return;const d=S.devs.find(x=>x.no===ref),b=d?bat
   const wa=p=>p?`<a class="btn pri" href="https://wa.me/${waNum(p)}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener">Send 💬 ${p===S.set.qaPhone?'QA':'Plant'}</a>`:'';
   const ems=[S.set.qaEmail,S.set.pmEmail].filter(Boolean).join(',');
   showModal(`<h3>Send Alert</h3><textarea readonly style="min-height:120px">${esc(t)}</textarea><div class="acts">${wa(S.set.qaPhone)}${wa(S.set.pmPhone)}${ems?`<a class="btn" href="mailto:${ems}?subject=${encodeURIComponent('ALERT '+ref)}&body=${encodeURIComponent(t)}">Send 📧</a>`:''}<button onclick="hideModal()">Close</button></div>
-   ${S.set.qaPhone||S.set.pmPhone||ems?'':'<div class="note">Set the QA Manager and Plant Manager contacts in Settings → Quality Settings.</div>'}`);}
+   ${S.set.qaPhone||S.set.pmPhone||ems?'':'<div class="note">Set the QA Manager and Plant Manager contacts in Settings → Quality.</div>'}`);}
 
 /* ================= PRO: trends (SPC) ================= */
 let spR='';
@@ -2255,7 +2285,7 @@ function recCost(r){const rows=r.lines.map(l=>{const it=item(l.item)||{name:'(de
   const bl=S.set.bottle/1000,pk=(+S.set.pkBottle||0)+(+S.set.pkCap||0)+(+S.set.pkLabel||0),perB=ing*bl+pk,tot=perB*(1+(+S.set.ovh||0)/100);return{rows,ing,pk,perB,tot};}
 function vCost(){const cur=S.set.cur;const m=v=>cur+' '+(+v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   return `<div class="acts top"><button onclick="go('qa')">← Quality</button></div><h2>Cost</h2>
-  <div class="note" style="margin-bottom:10px">Set the ingredient cost in Ingredients → Edit. Set the packing and other costs in Settings → Quality Settings. Bottle size: ${S.set.bottle} mL.</div>
+  <div class="note" style="margin-bottom:10px">Set the ingredient cost in Ingredients → Edit. Set the packing and other costs in Settings → Quality. Bottle size: ${S.set.bottle} mL.</div>
   <div class="card scroll"><table><thead><tr><th>Product</th><th>Ingredients per 1 L</th><th>Ingredients per bottle</th><th>Packing per bottle</th><th>Other costs</th><th>Total per bottle</th></tr></thead><tbody>
   ${S.recipes.map(r=>{const c=recCost(r);return `<tr><td>${esc(r.name)}</td><td>${m(c.ing)}</td><td>${m(c.ing*S.set.bottle/1000)}</td><td>${m(c.pk)}</td><td>${S.set.ovh} %</td><td class="num">${m(c.tot)}</td></tr>`;}).join('')}</tbody></table>
   <div class="acts"><button class="pri" onclick="xlCost()">↓ Excel</button></div></div>
