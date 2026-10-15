@@ -1006,7 +1006,7 @@ let ctEd=null;
 function ctPanel(){const cs=contacts(),ad=A(),e=ctEd&&cs.find(x=>x.id===ctEd)||{name:'',dept:'Store',phone:'',email:''};
   return `<h2>Contacts</h2><div class="note" style="margin-bottom:10px">People and departments that get documents by WhatsApp or email. They show on every Send box, and the right departments are ticked already.${ad?'':' Only the Admin can add, edit or delete contacts.'}</div>
   ${cs.map(c=>`<div class="card ucard"><div class="uhd"><b>${esc(c.name)}</b><span class="badge b-ok">${esc(c.dept)}</span></div><div class="note">💬 ${esc(c.phone||'—')} · 📧 ${esc(c.email||'—')}</div>${ad?`<div class="acts"><button class="sm" onclick="ctEd='${c.id}';render();setTimeout(()=>{const f=$('ctN');if(f){f.scrollIntoView({block:'center'});f.focus();}},50)">Edit</button><button class="sm bad" onclick="delContact('${c.id}')">Delete</button></div>`:''}</div>`).join('')||'<div class="card note">No contacts yet.</div>'}
-  ${ad?`<div class="card form2"><h3>${ctEd?'Edit Contact':'+ Contact'}</h3><div class="two"><label>Name<input id="ctN" value="${esc(e.name)}" placeholder="e.g. Sunil (Store)"></label><label>Department<select id="ctD">${DEPTS.map(d=>`<option ${d===e.dept?'selected':''}>${d}</option>`).join('')}</select></label></div>
+  ${ad?`<div class="card form2"><h3>${ctEd?'Edit Contact':'New Contact'}</h3><div class="two"><label>Name<input id="ctN" value="${esc(e.name)}" placeholder="e.g. Sunil (Store)"></label><label>Department<select id="ctD">${DEPTS.map(d=>`<option ${d===e.dept?'selected':''}>${d}</option>`).join('')}</select></label></div>
    <div class="two"><label>WhatsApp<input id="ctP" type="tel" value="${esc(e.phone)}" placeholder="e.g. 0771234567"></label><label>Email<input id="ctE" type="email" value="${esc(e.email)}" placeholder="e.g. store@company.com"></label></div>
    <div class="acts" style="margin-top:0"><button class="pri" onclick="addContact()">${ctEd?'Save':'+ Contact'}</button>${ctEd?`<button onclick="ctEd=null;render()">Cancel</button>`:''}</div></div>`:''}`;}
 function addContact(){if(!A())return;const n=$('ctN').value.trim(),p=$('ctP').value.trim(),e=$('ctE').value.trim();if(!n)return toast('Enter the name');if(!p&&!e)return toast('Enter a WhatsApp number or an email');
@@ -1889,9 +1889,9 @@ function vProd(){const zn=zoneNames();
    ${ready.map(r=>`<tr><td class="mono"><a onclick="go('reqView','${r.id}')">${esc(r.no)}</a></td><td>${esc(r.recName)}</td><td style="white-space:nowrap">${r.size} ${r.unit}</td><td>${fd(r.plan)||'—'}</td><td>${r.disp?'<span class="badge b-ok">Yes</span>':'<span class="badge b-warn">No</span>'}</td><td><button class="pri sm" onclick="startBatch('${r.id}')">Start</button></td></tr>`).join('')}
    </tbody></table></div>`:'<div class="card note">No open requisitions. Every production starts from a requisition: tap + Requisition.</div>'}
   <div class="card note">Finished batches are in <a onclick="go('hist')">History</a>.</div>`;}
-function batchCard(b){const n=b.lines.filter(l=>l.t).length;
+function batchCard(b){const n=b.lines.filter(l=>l.t).length,ln=b.pre&&b.pre.line;
   return `<div class="card"><div class="hd"><div><div class="note">Batch no.</div><b class="mono" style="font-size:22px;color:var(--gold)">${esc(b.no)}</b> ${bStat(b.status)}<div>${esc(b.recName)} · ${b.size} ${b.unit}</div>
-   <div class="note">${b.start?'Started '+fdt(b.start)+' · ':'Created '+fdt(b.created||Date.now())+' · '}${esc(b.by||'—')}${b.pre&&b.pre.tank?' · '+esc((equip(b.pre.tank)||{}).code||''):''}</div></div><div class="big">${n}/${b.lines.length} <span class="note">added</span></div></div>
+   <div class="note">${b.start?'Started '+fdt(b.start)+' · ':'Created '+fdt(b.created||Date.now())+' · '}${esc(b.by||'—')}${b.pre&&b.pre.tank?' · '+esc((equip(b.pre.tank)||{}).code||''):''}</div></div><div style="text-align:right"><span class="badge ${ln?'b-ok':'b-warn'}" style="font-size:15px">${ln?esc(ln):'Line: not set'}</span><div class="big" style="margin-top:8px">${n}/${b.lines.length} <span class="note">added</span></div></div></div>
    <div class="acts"><button class="pri" onclick="go('batch','${b.id}')">Continue</button></div></div>`;}
 function batchTable(list){return `<div class="card scroll"><table><thead><tr><th>Batch no.</th><th>Product</th><th>Batch size</th><th>Requisition</th><th>Finished</th><th>Status</th><th>Bottles</th></tr></thead><tbody>
   ${list.map(b=>{const r=reqById(b.req),u=(b.bottling||[]).reduce((s,x)=>s+(+x.units||0),0);return `<tr class="click" onclick="go('batch','${b.id}')"><td class="mono">${esc(b.no)}</td><td>${esc(b.recName)}</td><td style="white-space:nowrap">${b.size} ${b.unit}</td><td class="mono">${esc(r?r.no:'—')}</td><td style="white-space:nowrap">${b.end?fdt(b.end):'—'}</td><td>${bStat(b.status)}</td><td>${u||'—'}</td></tr>`;}).join('')}
@@ -1957,7 +1957,8 @@ function zoneBase(){return TIER!=='std'||PRO?5:2;}
 function maxZones(){return zoneBase()+(+S.set.zoneExtra||0);}
 function zones(){const n=maxZones();let z=Array.isArray(S.set.zones)?S.set.zones:[];
   if(!z.length)z=String(S.set.lines||'').split(',').map(x=>x.trim()).filter(Boolean).map(nm=>({name:nm,sup:'',blend:''}));
-  while(z.length<n)z.push({name:'Zone '+(z.length+1),sup:'',blend:''});S.set.zones=z;return z.slice(0,n);}
+  while(z.length<n)z.push({name:'Line '+(z.length+1),sup:'',blend:''});
+  z.forEach((x,i)=>{if(x.name==='Zone '+(i+1)&&!z.some(y=>y.name==='Line '+(i+1))){const nn='Line '+(i+1);S.batches.forEach(b=>{if(b.pre&&b.pre.line===x.name)b.pre.line=nn;});S.equip.forEach(e=>{if(e.line===x.name)e.line=nn;});x.name=nn;}});S.set.zones=z;return z.slice(0,n);}
 function zoneNames(){return zones().map(z=>z.name);}
 function zoneOf(nm){return zones().find(z=>z.name===nm);}
 function demoZones(){zones().forEach((z,i)=>{if(!z.sup&&!z.blend&&i<2){z.sup=['Demo Supervisor','Demo Manager'][i];z.blend=['Demo Blender','Demo Operator'][i];}});S.set.lines=zoneNames().join(', ');}
@@ -1972,7 +1973,7 @@ function zonesPanel(){if(!A())return '';const zs=zones();
   ${zs.map((z,i)=>`<div class="card form2"><label>Zone name<input id="zN${i}" value="${esc(z.name)}"></label><div class="two"><label>Supervisor<input id="zS${i}" value="${esc(z.sup)}"></label><label>Blender<input id="zB${i}" value="${esc(z.blend)}"></label></div></div>`).join('')}
   ${AUTH.isDev()?`<div class="card form2" style="border-color:var(--gold)"><label>Extra zones (paid · developer only)<input id="zX" type="number" min="0" step="1" inputmode="numeric" value="${+S.set.zoneExtra||0}"></label></div>`:''}
   <div class="acts"><button class="pri" onclick="saveZones()">Save</button></div>`;}
-function saveZones(){if(!A())return;const zs=zones(),names=[];for(let i=0;i<zs.length;i++){const n=$('zN'+i).value.trim()||('Zone '+(i+1));if(names.includes(n))return toast('Two zones have the same name');names.push(n);}
+function saveZones(){if(!A())return;const zs=zones(),names=[];for(let i=0;i<zs.length;i++){const n=$('zN'+i).value.trim()||('Line '+(i+1));if(names.includes(n))return toast('Two zones have the same name');names.push(n);}
   zs.forEach((z,i)=>{const nn=names[i];if(nn!==z.name){S.batches.forEach(b=>{if(b.pre&&b.pre.line===z.name&&!['done','rejected'].includes(b.status))b.pre.line=nn;});S.equip.forEach(e=>{if(e.line===z.name)e.line=nn;});}
     z.name=nn;z.sup=$('zS'+i).value.trim();z.blend=$('zB'+i).value.trim();});
   if($('zX'))S.set.zoneExtra=Math.max(0,Math.floor(+$('zX').value||0));S.set.lines=zoneNames().join(', ');audit('Zones saved','','');save();render();toast('Saved');}
@@ -2528,7 +2529,7 @@ function demoRun(){const r=recipe('icedtea');if(!r)return;const P=plan(r,10);if(
   const t0=t+20*60000,lines=x.lines.map(l=>({itemId:l.itemId,target:l.qty,actual:null,unit:'',t:null,by:'',lots:[]}));
   if(r.waterG>0)lines.splice(1,0,{itemId:'WATER',water:true,target:r6(r.waterG*10),actual:null,unit:'g',t:null,by:'',lots:[]});
   const b={id:rid(),no:newBatNo(dt),req:x.id,rec:x.rec,recName:x.recName,size:10,unit:'L',status:'prod',created:t0-600e3,start:t0,end:null,by:OP.n,tol:+S.set.tol||2,
-    spec:JSON.parse(JSON.stringify(r.spec||{})),ver:r.version||1,pre:{tank:tk,line:'Zone 2',amb:'28',checks:CLEAR_CHECKS.map(()=>true),op:sg(OP,t0),lead:sg(MG,t0),t:t0},lines,ipqc:[],bottling:[]};
+    spec:JSON.parse(JSON.stringify(r.spec||{})),ver:r.version||1,pre:{tank:tk,line:'Line 2',amb:'28',checks:CLEAR_CHECKS.map(()=>true),op:sg(OP,t0),lead:sg(MG,t0),t:t0},lines,ipqc:[],bottling:[]};
   lines.slice(0,2).forEach((l,n)=>{const tt=t0+(n+1)*300000,q=r6(l.target*[1.002,0.999][n]);
     if(l.water){l.actual=q;l.unit='g';}else{const it=item(l.itemId),a=allocate(it.id,q);if(a.short)return;takeLots(it.id,a.picks,`Batch ${b.no} · ${b.recName} 10 L`,OP.n,{prod:b.rec,batch:b.id,req:x.id},tt);l.actual=q;l.unit=defUnit(it,l.target);l.lots=a.picks;}
     l.t=tt;l.by=OP.n;l.sb=sg(OP,tt);l.sv=sg(MG,tt);l.temp=['24','25'][n];l.note='';});
@@ -2538,10 +2539,10 @@ function demoLogFix(){if(!S.demo||S.set.dlog||cloudWanted())return;S.batches.for
   if(!S.batches.some(b=>['pre','prod'].includes(b.status)))demoRun();S.set.dlog=1;}
 function seedQA(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return x.getFullYear()+'-'+p2(x.getMonth()+1)+'-'+p2(x.getDate());};
   const MG={n:'Demo Manager',u:'',r:'Manager',s:'',t:0},OP={n:'Demo Operator',u:'',r:'Operator',s:'',t:0},sg=(o,t)=>Object.assign({},o,{t});
-  S.equip=[{id:rid(),code:'TK-01',name:'Mixing tank 500 L',type:'Tank',line:'Zone 1',active:true},{id:rid(),code:'TK-02',name:'Mixing tank 300 L',type:'Tank',line:'Zone 2',active:true},{id:rid(),code:'FL-01',name:'Filling line 1',type:'Filler',line:'Zone 1',active:true}];
+  S.equip=[{id:rid(),code:'TK-01',name:'Mixing tank 500 L',type:'Tank',line:'Line 1',active:true},{id:rid(),code:'TK-02',name:'Mixing tank 300 L',type:'Tank',line:'Line 2',active:true},{id:rid(),code:'FL-01',name:'Filling line 1',type:'Filler',line:'Line 1',active:true}];
   S.set.zones=[];demoZones();const tk=S.equip[0].id;
   S.batches.slice().reverse().forEach((b,k)=>{const t0=b.start-3600e3;S.cip.push({id:rid(),t:t0,equip:tk,date:isoOf(t0),last:k?S.batches[S.batches.length-k].recName:'',method:CIP_METHODS[0],chem:'Caustic 2% + citric rinse',start:'06:00',end:'06:45',rinse:'Pass',remarks:'',photo:'',by:sg(OP,t0),ver:sg(MG,t0)});
-    b.status='done';b.created=b.start;b.ver=1;b.spec=JSON.parse(JSON.stringify((recipe(b.rec)||{}).spec||{}));b.pre={tank:tk,line:'Zone 1',amb:'29',checks:CLEAR_CHECKS.map(()=>true),cip:S.cip[S.cip.length-1].id,op:sg(OP,b.start),lead:sg(MG,b.start),t:b.start};
+    b.status='done';b.created=b.start;b.ver=1;b.spec=JSON.parse(JSON.stringify((recipe(b.rec)||{}).spec||{}));b.pre={tank:tk,line:'Line 1',amb:'29',checks:CLEAR_CHECKS.map(()=>true),cip:S.cip[S.cip.length-1].id,op:sg(OP,b.start),lead:sg(MG,b.start),t:b.start};
     b.lines.forEach((l,n)=>{l.sb=sg(OP,l.t);l.sv=sg(MG,l.t);if(l.temp==null){l.temp=String(24+n%3);l.note='';}});const sp=b.spec;
     b.ipqc=[{t:b.start+300e3,stage:STAGES[0],brix:String(sp.brix),ph:'',temp:'70',vis:'Clear',ok:true,ccp:false,s:sg(OP,b.start+300e3)},{t:b.start+600e3,stage:STAGES[1],brix:'',ph:'',temp:String((sp.ccpTemp||85)+2),vis:'',ok:true,ccp:false,s:sg(OP,b.start+600e3)}];
     b.final={brix:String(sp.brix),ph:String(Math.round((sp.phMin+sp.phMax)*50)/100),ppm:String(Math.round(sp.ppmMax*0.8)),col:'Y',ec:PRO?'0.45':'',tpc:'',ym:'',brixOk:true,phOk:true,ppmOk:true,tpcOk:true,ymOk:true,ok:true,s:sg(MG,b.end),t:b.end};
