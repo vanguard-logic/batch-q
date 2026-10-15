@@ -1468,23 +1468,23 @@ async function cloudInit(){if(!cloudWanted()||!cloudWeb())return;CLOUD.status='C
 function cloudWeb(){return /^https?:$/.test(location.protocol);}
 function cloudRefresh(){if(view==='set'&&$('cloudBox'))$('cloudBox').outerHTML=cloudCard();}
 function cloudCard(){const u=CLOUD.user;
-  return `<div class="card form2" id="cloudBox"><h3>Cloud (Firebase)</h3>
-   <div class="kv" style="margin-top:0"><span>Status</span><b>${esc(u?(CLOUD.err?'Error: '+CLOUD.err:CLOUD.status):CLOUD.status)}</b>${u?`<span>Site login</span><b>${esc(u.email||'')}</b><span>Last sync</span><b>${CLOUD.synced?fdt(CLOUD.synced):'—'}</b>`:''}</div>
+  return `<div class="card form2" id="cloudBox">
+   <div class="kv" style="margin-top:0"><span>Status</span><b>${esc(u?(CLOUD.err?'Error: '+CLOUD.err:CLOUD.status):CLOUD.status)}</b>${u?`<span>Cloud email</span><b>${esc(u.email||'')}</b><span>Last sync</span><b>${CLOUD.synced?fdt(CLOUD.synced):'—'}</b>`:''}</div>
    ${u?`<div class="acts"><button class="pri" onclick="cloudPush(true)">Sync</button><button class="bad" onclick="cloudDisconnect()">Disconnect</button></div>
     <div class="note" style="margin-top:8px">Every change on this phone is sent to the cloud and every change from other phones arrives here automatically. User logins are shared too: a deleted or disabled login stops working on every phone. Without internet the phone keeps working and syncs later.</div>`
-   :`${cloudWeb()?'':`<div class="note" style="margin:8px 0;color:var(--warn)">This Batch Q file is opened from phone storage. The cloud works only when Batch Q is opened from its web address: ${APP_URL}</div>`}<div class="note" style="margin:8px 0">Connect this phone with the Batch Q site login created in Firebase (Authentication → Users). Do this once on each phone.</div>
-    <div class="two"><label>Site email<input id="cE" type="email" autocomplete="off" placeholder="batchq1@inveniostox.app"></label><label>Password<input id="cP" type="password" autocomplete="off"></label></div>
+   :`${cloudWeb()?'':`<div class="note" style="margin:8px 0;color:var(--warn)">This Batch Q file is opened from phone storage. The cloud works only when Batch Q is opened from its web address: ${APP_URL}</div>`}<div class="note" style="margin:8px 0">Connect this phone with the Batch Q cloud email and password. Do this once on each phone.</div>
+    <div class="two"><label>Cloud email<input id="cE" type="email" autocomplete="off" placeholder="batchq1@inveniostox.app"></label><label>Password<input id="cP" type="password" autocomplete="off"></label></div>
     <div class="acts"><button class="pri" onclick="cloudConnect()">Connect</button></div>`}</div>`;}
 async function cloudConnect(){if(!AUTH.isDev())return;
   if(!cloudWeb()){CLOUD.status='Cannot connect: Batch Q was opened from phone storage. Open '+APP_URL+' in Chrome, then connect.';cloudRefresh();return toast('Open '+APP_URL+' to connect');}
   const em=$('cE').value.trim(),pw=$('cP').value;CLOUD.status='Connecting…';cloudRefresh();
-  try{await Promise.race([cloudConnect0(em,pw),new Promise((_,no)=>setTimeout(()=>no(new Error('no answer from Firebase after 25 seconds — check the internet')),25000))]);}
+  try{await Promise.race([cloudConnect0(em,pw),new Promise((_,no)=>setTimeout(()=>no(new Error('no answer from the cloud after 25 seconds. Check the internet.')),25000))]);}
   catch(e){CLOUD.connecting=false;CLOUD.status='Not connected — '+(e&&(e.code||e.message)||e);cloudRefresh();toast(CLOUD.status);}}
 async function cloudConnect0(em,pw){if(!EMAIL_RE.test(em)||!pw)throw new Error('enter the site email and password');
   toast('Connecting…');CLOUD.connecting=true;try{await fbLoad();await cloudBoot();}catch(e){throw new Error('no internet — the cloud library could not load');}
   try{const cr=await CLOUD.app.auth().signInWithEmailAndPassword(em,pw);CLOUD.user=cr.user;}catch(e){throw new Error('sign-in failed: '+((e&&e.code)||(e&&e.message)||'').replace('auth/','').replace(/-/g,' '));}
   const base=CLOUD.db.collection(ROOT).doc(CLOUD.user.uid);let meta=null;
-  try{meta=await base.collection('meta').doc('state').get();}catch(e){CLOUD.app.auth().signOut().catch(()=>{});throw new Error(/permission/i.test(e&&(e.code||e.message)||'')?'Firestore rules do not allow Batch Q yet (add the bq_lite rule in Firebase)':(e&&(e.code||e.message)));}
+  try{meta=await base.collection('meta').doc('state').get();}catch(e){CLOUD.app.auth().signOut().catch(()=>{});throw new Error(/permission/i.test(e&&(e.code||e.message)||'')?'the cloud is not set up yet for this version. Contact Vanguard Logic Development.':(e&&(e.code||e.message)));}
   cloudSetWanted(true);
   if(meta&&meta.exists){const m=meta.data()||{};const pull=await ask(`The cloud already has data for this site (last change ${m.t?fdt(m.t):''}${m.by?' by '+m.by:''}). Use the cloud data on this phone? (Yes = replace this phone's data with the cloud data. Cancel = send this phone's data to the cloud instead.)`,'Use Cloud Data');
     if(pull){await cloudPullAll(base);toast('Cloud data loaded');}else{CLOUD.last={};await cloudPush(true);toast('This phone\'s data sent to the cloud');}}
