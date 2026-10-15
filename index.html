@@ -654,7 +654,7 @@ const CATS={RM:'Raw material',FL:'Flavour',CL:'Colour',PR:'Preservative / acid',
 const TYPE={IN:'Received',PROD:'Production'};
 const UF={g:['m',1],kg:['m',1000],ml:['v',1],L:['v',1000],pcs:['c',1]};
 const SIZES=[1,10,30,50];
-const RCATS=['Toppings','Syrups','Puree'];
+const RCATS=['Beverages','Toppings','Syrups','Puree'];
 const RSTAT={open:['Open','b-warn'],recv:['Received','b-ok'],prod:['In production','b-warn'],done:['Completed','b-ok'],cancel:['Cancelled','b-bad']};
 /* ingredients for the MCR recipes (filtered water is not an ingredient in the list).
    White sugar = sucrose (one ingredient); Dry orange = Dry orange flavouring (one ingredient) */
@@ -675,17 +675,25 @@ const SEED=[
  ['bbfcf','CL','Brilliant Blue FCF (E133 / INS 133)','kg'],
  ['allura','CL','Allura Red AC (E129 / INS 129)','kg'],
  ['ponceau','CL','Ponceau 4R (E124 / INS 124)','kg'],
- ['caramel','CL','Caramel colour (INS 150a / E150a)','kg']];
+ ['caramel','CL','Caramel colour (INS 150a / E150a)','kg'],
+ ['tea','RM','Black tea (Ceylon, broken leaf)','kg'],
+ ['coffee','RM','Ground coffee (coarse, medium roast)','kg'],
+ ['lemon','RM','Lemon juice (not from concentrate)','L'],
+ ['orangec','RM','Orange juice concentrate (65 °Brix)','kg'],
+ ['pinec','RM','Pineapple juice concentrate (60 °Brix)','kg'],
+ ['ascorbic','PR','Ascorbic acid (INS 300)','kg']];
 /* recipe quantities per 1 L of syrup — from the 1 Litre column of each MCR formulation */
 const BA=[['sugar',720,'g'],['gum',15,'g'],['benz',0.25,'g']];
 const RECIPES=[
- {id:'mojito',cat:'Syrups',name:'Mojito Syrup',lines:[...BA,['citric',2.4,'g'],['malic',0.8,'g'],['spearmint',3,'ml'],['nilime',4,'g']]},
- {id:'mojito-green',cat:'Syrups',name:'Mojito Syrup – Green Version',lines:[...BA,['citric',2.4,'g'],['malic',0.8,'g'],['spearmint',3,'ml'],['nilime',4,'g'],['tartrazine',0.07,'g'],['bbfcf',0.03,'g']]},
- {id:'blue',cat:'Syrups',name:'Blue Curaçao Syrup',lines:[...BA,['citric',2.4,'g'],['malic',0.75,'g'],['dryorange',4.5,'ml'],['orbooster',0.9,'g'],['bbfcf',0.11,'g']]},
- {id:'grenadine',cat:'Syrups',name:'Grenadine Syrup',lines:[...BA,['citric',2.4,'g'],['malic',0.75,'g'],['grenadine',6,'ml'],['allura',0.1,'g']]},
- {id:'triplesec',cat:'Syrups',name:'Triple Sec Syrup',lines:[...BA,['citric',2.4,'g'],['malic',0.8,'g'],['dryorange',6,'ml']]},
- {id:'strawberry',cat:'Syrups',name:'Strawberry Syrup',lines:[...BA,['citric',2.4,'g'],['malic',0.8,'g'],['strawberry',6,'ml'],['ponceau',0.1,'g']]},
- {id:'hazelnut',cat:'Syrups',name:'Hazelnut Cocktail Syrup',lines:[['sugar',720,'g'],['gum',15,'g'],['citric',2,'g'],['malic',0.5,'g'],['benz',0.25,'g'],['hazelnut',6,'g'],['caramel',0.08,'g']]}];
+ {id:'icedtea',cat:'Beverages',name:'Iced Tea (Lemon)',waterG:945,lines:[['tea',6,'g'],['sugar',80,'g'],['lemon',10,'ml']],
+  spec:{brix:8,brixMin:7.5,brixMax:8.5,phMin:2.9,phMax:3.4,ppmMax:150,colour:'Clear amber, no haze',ccpTemp:85,shelf:9,ec:'',tpc:100,ym:10}},
+ {id:'coldbrew',cat:'Beverages',name:'Cold Brew Coffee',waterG:1160,lines:[['coffee',80,'g']],
+  spec:{brix:2,brixMin:1.5,brixMax:2.5,phMin:4.8,phMax:5.3,ppmMax:0,colour:'Dark brown, no sediment',ccpTemp:90,shelf:1,ec:'',tpc:100,ym:10}},
+ {id:'lemonade',cat:'Beverages',name:'Lemonade',waterG:841,lines:[['lemon',100,'ml'],['sugar',100,'g']],
+  spec:{brix:10.5,brixMin:10,brixMax:11,phMin:2.5,phMax:3,ppmMax:150,colour:'Pale yellow, slightly cloudy',ccpTemp:85,shelf:9,ec:'',tpc:100,ym:10}},
+ {id:'juice',cat:'Beverages',name:'Fruit Juice (Orange & Pineapple)',waterG:853,lines:[['orangec',126,'g'],['pinec',67,'g']],
+  spec:{brix:11.7,brixMin:11.2,brixMax:12.2,phMin:3.4,phMax:3.9,ppmMax:0,colour:'Orange-yellow, natural cloud',ccpTemp:90,shelf:12,ec:'',tpc:100,ym:10}}];
+const OLD_DEMO=['mojito','mojito-green','blue','grenadine','triplesec','strawberry','hazelnut'];
 
 /* ================= helpers ================= */
 function $(id){return document.getElementById(id);}
@@ -736,7 +744,7 @@ function blank(){
     set:{biz:'MCR Concept',cc:'94',warn:30,tol:2,reqPhone:'',reqEmail:''}};
   SEED.forEach(([key,cat,name,unit])=>{const ini=initials(name);s.seq.SKU[ini]=(s.seq.SKU[ini]||0)+1;
     s.items.push({id:rid(),key,ini,sku:skuFmt(ini,s.seq.SKU[ini]),name,cat,unit,notes:'',created:Date.now()});});
-  RECIPES.forEach(r=>s.recipes.push({id:r.id,cat:r.cat,name:r.name,unit:'L',lines:r.lines.map(([k,q,u])=>({item:s.items.find(i=>i.key===k).id,qty:q,unit:u}))}));
+  RECIPES.forEach(r=>s.recipes.push({id:r.id,cat:r.cat,name:r.name,unit:'L',waterG:r.waterG||0,spec:JSON.parse(JSON.stringify(r.spec||{})),lines:r.lines.map(([k,q,u])=>({item:s.items.find(i=>i.key===k).id,qty:q,unit:u}))}));
   return s;}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.items)&&Array.isArray(s.lots))return fix(s);}catch(e){}const b=fix(blank());b._fresh=true;return b;}
 function fix(s){['lots','moves','reqs','batches','recipes'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[];});
@@ -760,7 +768,7 @@ function newBatNo(d){return seqNo(S.seq.BAT,'B'+d5(d||today()),x=>S.batches.some
 function peekGrn(d){const k='G'+d5(d||today());return k+'-'+((S.seq.GRN[k]||0)+1);}
 function newGrnNo(d){return seqNo(S.seq.GRN,'G'+d5(d||today()),x=>S.lots.some(l=>l.grn===x));}
 
-let S=load();if(S._fresh){delete S._fresh;seedDemo();}save();
+let S=load();if(!S._fresh&&S.demo&&S.recipes.length&&S.recipes.every(r=>OLD_DEMO.includes(r.id))){S=fix(blank());S._fresh=true;}if(S._fresh){delete S._fresh;seedDemo();}save();
 let view='prod',param=null,showUsed=false,retView=null,lastGrn=null,itemPre=null,reqF='open';
 let rcv=newRcv();
 let rq={cat:null,rec:null,size:null,plan:today(),note:''};
@@ -1088,7 +1096,7 @@ async function delItem(id){const it=item(id);if(!A()||!it)return;if(!(await ask(
 /* ================= RECIPES ================= */
 const MAX_REC=12;
 function recFull(){return S.recipes.length>=MAX_REC;}
-function vRecipes(){return `<h2>Recipes</h2><div class="note" style="margin:-4px 0 10px">${S.recipes.length} of ${MAX_REC} recipes used (Toppings, Syrups and Puree together).</div>${A()?`<div class="acts" style="margin:0 0 12px"><button class="pri" ${recFull()?'disabled':''} onclick="openRec('new:Syrups')">+ Recipe</button></div>${recFull()?'<div class="card note">Batch Q uF Base holds up to 12 recipes. To add a new one, delete a recipe first, or use Batch Q uF Lite or Pro for more recipes.</div>':''}`:''}
+function vRecipes(){return `<h2>Recipes</h2><div class="note" style="margin:-4px 0 10px">${S.recipes.length} of ${MAX_REC} recipes used (all categories together).</div>${A()?`<div class="acts" style="margin:0 0 12px"><button class="pri" ${recFull()?'disabled':''} onclick="openRec('new:Beverages')">+ Recipe</button></div>${recFull()?'<div class="card note">Batch Q uF Base holds up to 12 recipes. To add a new one, delete a recipe first, or use Batch Q uF Lite or Pro for more recipes.</div>':''}`:''}
   ${RCATS.map(c=>{const l=S.recipes.filter(r=>r.cat===c).sort((a,b)=>a.name.localeCompare(b.name));
     return `<h2>${c}</h2>${l.length?`<div class="grid">${l.map(r=>`<button class="opt" onclick="go('recipe','${r.id}')">${esc(r.name)}<div class="note">${r.lines.length} ingredients · per 1 ${r.unit||'L'}</div></button>`).join('')}</div>`:`<div class="card note">No ${c.toLowerCase()} recipes yet.</div>`}`;}).join('')}`;}
 function vRecipe(){const r=recipe(param);if(!r)return nf();
@@ -1365,9 +1373,8 @@ function xlHistBlob(){const list=histList(),cols=['Date & time','Type','Ingredie
 function seedDemo(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return x.getFullYear()+'-'+p2(x.getMonth()+1)+'-'+p2(x.getDate());};
   const it=k=>S.items.find(i=>i.key===k),SK='Demo Operator',MG='Demo Manager';
   const plan0=[ // key: [qty, days ago received, days to expiry]...
-    ['sugar',[[50,40,500],[25,6,540]]],['gum',[[4,30,400]]],['benz',[[1,30,600]]],['citric',[[3,30,500]]],['malic',[[1,30,500]]],['spearmint',[[1.5,20,300]]],
-    ['nilime',[[1,60,18]]],['dryorange',[[2,20,330]]],['orbooster',[[0.15,45,200]]],['grenadine',[[2,20,330]]],['strawberry',[[0.4,50,25]]],['hazelnut',[[1,20,360]]],
-    ['tartrazine',[[0.05,70,700]]],['bbfcf',[[0.1,70,700]]],['allura',[[0.05,70,700]]],['ponceau',[[0.05,70,700]]],['caramel',[[0.5,70,500]]]];
+    ['sugar',[[50,40,500],[25,6,540]]],['benz',[[1,30,600]]],['citric',[[3,30,500]]],['ascorbic',[[0.5,30,500]]],['tea',[[2,25,330]]],['coffee',[[3,10,120]]],
+    ['lemon',[[2,6,20],[3,2,28]]],['orangec',[[5,20,300]]],['pinec',[[3,20,300]]]];
   const recs=[];plan0.forEach(([k,ls])=>ls.forEach(([q,ago,exp])=>recs.push({k,q,ago,exp})));recs.sort((a,b)=>b.ago-a.ago);const grnOf={};
   recs.forEach(r=>{const i=it(r.k),rd=d(-r.ago);if(!grnOf[rd])grnOf[rd]=newGrnNo(rd);const t=new Date(rd+'T09:30:00').getTime();
     const l={id:rid(),lot:newLotNo(rd,i),itemId:i.id,recv:rd,mfg:'',exp:d(r.exp),grn:grnOf[rd],req:'',by:SK,qtyIn:r.q,qtyLeft:r.q,created:t};
@@ -1375,12 +1382,12 @@ function seedDemo(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);retu
   const mkReq=(id,size,ago,status)=>{const r=recipe(id),dt=d(-ago),t=new Date(dt+'T08:40:00').getTime();
     const x={id:rid(),no:newReqNo(dt),t,date:dt,plan:status==='open'?d(1):dt,rec:r.id,recName:r.name,size,unit:'L',lines:plan(r,size).map(p=>({itemId:p.it.id,qty:p.need})),note:'',by:MG,status,sent:[{via:'WhatsApp',t:t+60000,by:MG}],batch:null,got:''};
     S.reqs.push(x);return x;};
-  [['blue',10,12],['grenadine',10,8],['triplesec',10,3]].forEach(([id,size,ago])=>{const x=mkReq(id,size,ago,'done'),dt=d(-ago),t0=new Date(dt+'T10:00:00').getTime();
+  [['icedtea',10,12],['lemonade',10,8],['juice',10,3]].forEach(([id,size,ago])=>{const x=mkReq(id,size,ago,'done'),dt=d(-ago),t0=new Date(dt+'T10:00:00').getTime();
     const b={id:rid(),no:newBatNo(dt),req:x.id,rec:x.rec,recName:x.recName,size,unit:'L',status:'done',start:t0,end:0,by:SK,tol:2,lines:[]};
-    x.lines.forEach((l,n)=>{const i=item(l.itemId),f=[1.004,0.997,1.001,0.999,1.006,1,0.995,1.003][n%8]*(id==='grenadine'&&n===6?1.035:1),q=r6(l.qty*f),t=t0+(n+1)*240000,a=allocate(i.id,q);
+    x.lines.forEach((l,n)=>{const i=item(l.itemId),f=[1.004,0.997,1.001,0.999,1.006,1,0.995,1.003][n%8]*(id==='lemonade'&&n===0?1.035:1),q=r6(l.qty*f),t=t0+(n+1)*240000,a=allocate(i.id,q);
       takeLots(i.id,a.picks,`Batch ${b.no} · ${b.recName} ${size} L`,SK,{prod:b.rec,batch:b.id,req:x.id},t);b.lines.push({itemId:i.id,target:l.qty,actual:q,unit:defUnit(i,l.qty),t,by:SK,lots:a.picks});});
     b.end=t0+(x.lines.length+2)*240000;x.batch=b.id;S.batches.push(b);});
-  const r4=mkReq('mojito',10,1,'recv');r4.got=d(0);mkReq('strawberry',10,0,'open');
+  const r4=mkReq('coldbrew',10,1,'recv');r4.got=d(0);mkReq('icedtea',10,0,'open');
   S.reqs.sort((a,b)=>b.t-a.t);S.batches.sort((a,b)=>b.start-a.start);S.moves.sort((a,b)=>b.t-a.t);
   S.set.reqPhone='0771512933';S.set.reqEmail='migiecmb@gmail.com';S.demo=true;}
 
