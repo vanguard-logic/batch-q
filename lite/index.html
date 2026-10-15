@@ -1613,7 +1613,7 @@ function sign(o){return new Promise(res=>{const cur=AUTH.user()||{};
    <div class="note" style="margin-bottom:4px">Sign inside the box</div><canvas id="sgC" class="sgc" width="600" height="200"></canvas>
    <div id="sgM" class="gmsg"></div><div class="acts" style="margin-top:4px"><button class="pri" onclick="sgOk()">Sign</button><button onclick="sgClear()">Clear</button><button onclick="sgCancel()">Cancel</button></div>`);
   sgInit();sgPw();});}
-function sgPw(){const u=$('sgU').value,cur=AUTH.user()||{},need=PRO&&u!==cur.user;$('sgPwL').hidden=!need;}
+function sgPw(){const u=$('sgU').value,cur=AUTH.user()||{},need=PRO&&u!==cur.user&&!(AUTH.isOpen&&AUTH.isOpen()&&/^demo-/.test(u));$('sgPwL').hidden=!need;}
 function sgInit(){const c=$('sgC'),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#0b1f3a';x.lineWidth=4;x.lineCap='round';x.lineJoin='round';let dn=false;
   const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
   c.onpointerdown=e=>{dn=true;c.setPointerCapture(e.pointerId);const[a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+0.1,b+0.1);x.stroke();sg.drawn=true;};
@@ -2315,7 +2315,7 @@ function ccPdf(){return pdfReport('CHANGE CONTROL RECORD',S.set.biz,[{table:{hea
   rows:S.cc.map(c=>[c.no,fd(isoOf(c.t)),c.desc,c.reason,c.docs,c.risk,c.qa?c.qa.n:'—',c.prod?c.prod.n:'—',c.impl?fd(c.impl):'—',c.status])}}]);}
 
 /* ================= PRO: training / competency ================= */
-function trainedOk(user,role,task){if(role==='Administrator'||role==='Developer')return true;return S.train.some(t=>t.user===user&&t.task===task&&t.result==='Pass'&&t.valid>=today());}
+function trainedOk(user,role,task){if(role==='Administrator'||role==='Developer')return true;if(AUTH.isOpen&&AUTH.isOpen()&&/^demo-/.test(user||''))return true;return S.train.some(t=>t.user===user&&t.task===task&&t.result==='Pass'&&t.valid>=today());}
 let tr=null;
 function vTrain(){const us=AUTH.list().filter(u=>u.role!=='Developer');
   return `<div class="acts top"><button onclick="go('qa')">← Quality</button></div><h2>Training</h2><div class="note" style="margin-bottom:10px">Only trained people can sign for a task. Admin and Developer do not need training.</div>

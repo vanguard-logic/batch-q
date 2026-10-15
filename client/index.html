@@ -597,30 +597,41 @@ var AUTH=(function(){
   function splash(){show();g('gate').innerHTML='<div class="gbox">'+brand()+'<div class="gload"><i></i></div></div>'+foot();
     var t=setTimeout(loginScreen,2200);g('gate').onclick=function(){clearTimeout(t);loginScreen();};}
   var mode=null; /* 'admin' or 'user' sign-in screen */
-  function loginScreen(){var gt=g('gate');gt.onclick=null;var first=!users().length;
+  /* --- open access (Client Demo): sign in with empty username and password; ready-made demo people can sign records --- */
+  function isOpen(){return !!(cfg&&cfg.openDemo);}
+  function openUser(m){return m==='admin'?{id:'open-admin',name:'Demo Admin',user:'open-admin',role:'Administrator',active:true}:{id:'open-user',name:'Demo '+staffRoles()[0],user:'open-user',role:staffRoles()[0],active:true};}
+  function demoPeople(){return isOpen()?staffRoles().map(function(r){return{name:'Demo '+r,user:'demo-'+r.toLowerCase().replace(/[^a-z]+/g,'-'),role:r};}).concat([{name:'Demo Admin',user:'demo-admin',role:'Administrator'}]):[];}
+  var taps=0,tapT=null;
+  function devTap(){clearTimeout(tapT);tapT=setTimeout(function(){taps=0;},1500);if(++taps>=5){taps=0;mode='dev';loginScreen();}}
+  function loginScreen(){var gt=g('gate');gt.onclick=null;var hasDev=users().some(function(z){return z.role==='Developer';}),first=isOpen()?(mode==='dev'&&!hasDev):!users().length;
     if(!first&&!mode){gt.innerHTML='<div class="gbox">'+brand()+'<div class="gform gchoose"><h3>Sign In As</h3>'+
-      '<button class="pri big" type="button" id="gUsr">User</button><button class="big" type="button" id="gAdm">Admin</button><button class="big" type="button" id="gDev">Developer</button></div></div>'+foot();
-      g('gUsr').onclick=function(){mode='user';loginScreen();};g('gAdm').onclick=function(){mode='admin';loginScreen();};g('gDev').onclick=function(){mode='dev';loginScreen();};return;}
+      '<button class="pri big" type="button" id="gUsr">User</button><button class="big" type="button" id="gAdm">Admin</button>'+(isOpen()?'':'<button class="big" type="button" id="gDev">Developer</button>')+'</div></div>'+foot();
+      g('gUsr').onclick=function(){mode='user';loginScreen();};g('gAdm').onclick=function(){mode='admin';loginScreen();};if(g('gDev'))g('gDev').onclick=function(){mode='dev';loginScreen();};
+      if(isOpen()){var vv=gt.querySelector('.gver');if(vv)vv.onclick=devTap;}return;}
     gt.innerHTML='<div class="gbox">'+brand()+'<div class="gform" id="gf">'+
       (first?'<h3>Create the Developer Account</h3><div class="note">This is the first start. Set the username and password of the developer (Vanguard Logic Development). Keep them safe.</div>'+
         '<label>Full name<input id="gn" required></label>':'<h3>'+(mode==='dev'?'Developer Sign In':mode==='admin'?'Admin Sign In':'User Sign In')+'</h3>')+
       '<label>Username<input id="gu" autocapitalize="none" autocomplete="username" required></label>'+
       '<label>Password<input id="gp" type="password" autocomplete="'+(first?'new-password':'current-password')+'" required></label>'+
       (first?'<label>Repeat password<input id="gp2" type="password" autocomplete="new-password" required></label>':'')+
+      (isOpen()&&!first&&mode!=='dev'?'<div class="note">Open access: leave username and password empty and tap Sign In.</div>':'')+
       '<div id="gmsg" class="gmsg"></div><button class="pri big" type="button" id="gbtn">'+(first?'+ Account':'Sign In')+'</button>'+
-      (first?'':'<button class="gback" type="button" id="gBack">← Back</button>')+'</div></div>'+foot();
-    if(!first)g('gBack').onclick=function(){mode=null;loginScreen();};
+      (first&&!isOpen()?'':'<button class="gback" type="button" id="gBack">← Back</button>')+'</div></div>'+foot();
+    if(g('gBack'))g('gBack').onclick=function(){mode=null;loginScreen();};
     var run=function(){first?setup():signIn();};g('gbtn').onclick=run;
     Array.prototype.forEach.call(g('gf').querySelectorAll('input'),function(i){i.onkeydown=function(ev){if(ev.key==='Enter'){ev.preventDefault();run();}};});
     setTimeout(function(){var f=g(first?'gn':'gu');if(f&&f.focus)f.focus();},50);}
   function setup(){var n=g('gn').value.trim(),u=g('gu').value.trim().toLowerCase(),p=g('gp').value,p2=g('gp2').value;
     var bad=check(n,u,p,p2);if(bad)return msg(bad);var s=salt();
-    saveUsers([{id:Date.now().toString(36),name:n,user:u,role:'Developer',salt:s,hash:hash(p,s),active:true,created:Date.now()}]);
-    finish(users()[0]);}
+    if(isOpen()&&users().some(function(z){return z.user===u;}))return msg('That username is already used.');
+    saveUsers((isOpen()?users():[]).concat([{id:Date.now().toString(36),name:n,user:u,role:'Developer',salt:s,hash:hash(p,s),active:true,created:Date.now()}]));
+    finish(users().filter(function(z){return z.user===u;})[0]);}
   function check(n,u,p,p2){if(!n)return 'Enter the full name.';if(!/^[a-z0-9._-]{3,20}$/.test(u))return 'Username: 3 to 20 letters or numbers, no spaces.';
     if(p.length<6)return 'Password: at least 6 characters.';if(p2!==undefined&&p!==p2)return 'The two passwords do not match.';return '';}
   function signIn(){var now=Date.now();if(now<lockUntil)return msg('Too many wrong attempts. Try again in '+Math.ceil((lockUntil-now)/1000)+' seconds.');
-    var u=g('gu').value.trim().toLowerCase(),p=g('gp').value,x=users().filter(function(z){return z.user===u;})[0];
+    var u=g('gu').value.trim().toLowerCase(),p=g('gp').value;
+    if(isOpen()&&mode!=='dev'&&!u&&!p){fails=0;return finish(openUser(mode));}
+    var x=users().filter(function(z){return z.user===u;})[0];
     if(!x||x.hash!==hash(p,x.salt)){fails++;if(fails>=5){lockUntil=now+60000;fails=0;}return msg('Wrong username or password.');}
     if(!x.active)return msg('This login is stopped. Ask the Admin.');
     if(mode==='dev'&&x.role!=='Developer')return msg('This is not a developer account.');
@@ -630,12 +641,12 @@ var AUTH=(function(){
   function finish(x){cur=x;setSess(x.user);g('gate').hidden=true;g('app').hidden=false;bar();if(cfg.onLogin)cfg.onLogin(x);}
   function bar(){var b=g('hbar');if(b)b.innerHTML='<span class="hver">'+ver()+'</span>'+(cfg.demo?'<span class="hdemo">'+e(cfg.demo)+'</span>':'')+'<button class="sm" onclick="AUTH.logout()">Log Out</button>';}
   /* a login deleted or disabled on another phone (cloud) is signed out here too */
-  function recheck(){if(!cur)return;var x=users().filter(function(z){return z.user===cur.user;})[0];
+  function recheck(){if(!cur||/^open-/.test(cur.user))return;var x=users().filter(function(z){return z.user===cur.user;})[0];
     if(!x||!x.active){logout();if(window.toast)window.toast('Your login was deleted or stopped. Ask the Admin.');return;}
     if(x.role!==cur.role||x.name!==cur.name){cur=x;bar();}}
   function logout(){if(G){cur=null;return toGate();}cur=null;mode=null;setSess(null);loginScreen();show();if(cfg.onLogout)cfg.onLogout();}
   /* --- users panel (administrator) and own password (everyone) --- */
-  function accountPanel(){if(!cur)return '';return '<h2>My Account</h2><div class="card form2"><div class="note" style="margin-bottom:8px">Signed in as <b>'+e(cur.name)+'</b> ('+e(cur.user)+') · '+e(cur.role)+'</div>'+
+  function accountPanel(){if(!cur)return '';if(/^open-/.test(cur.user))return '<h2>My Account</h2><div class="card note">Signed in with open access as '+e(cur.role)+'.'+(isAdmin()?' Add user logins in Users.':'')+'</div>';return '<h2>My Account</h2><div class="card form2"><div class="note" style="margin-bottom:8px">Signed in as <b>'+e(cur.name)+'</b> ('+e(cur.user)+') · '+e(cur.role)+'</div>'+
     '<div class="two"><label>Current password<input id="ap0" type="password" autocomplete="current-password"></label><label>New password<input id="ap1" type="password" autocomplete="new-password"></label></div>'+
     '<button class="pri" onclick="AUTH.changePw()">Change</button><div id="amsg" class="gmsg"></div></div>';}
   function changePw(){var a=g('amsg'),p0=g('ap0').value,p1=g('ap1').value,us=users(),x=us.filter(function(z){return z.user===cur.user;})[0];
@@ -686,12 +697,12 @@ var AUTH=(function(){
         cur=y;setSess(y.user);g('gate').hidden=true;g('app').hidden=false;bar();if(cfg.onLogin)cfg.onLogin(y);return;}
       var sz=getSess(),xz=sz&&users().filter(function(z){return z.user===sz&&z.active;})[0];if(!xz)return toGate();
       cur=xz;g('gate').hidden=true;g('app').hidden=false;bar();if(cfg.onLogin)cfg.onLogin(xz);return;}
-    var su=getSess(),x=su&&users().filter(function(z){return z.user===su&&z.active;})[0];
+    var su=getSess(),x=su&&users().filter(function(z){return z.user===su&&z.active;})[0];if(!x&&isOpen()&&/^open-(user|admin)$/.test(su||''))x=openUser(su.slice(5));
     if(x){cur=x;g('gate').hidden=true;g('app').hidden=false;bar();if(cfg.onLogin)cfg.onLogin(x);return;}
     splash();}
-  function list(){return users().filter(function(z){return z.active;}).map(function(z){return{name:z.name,user:z.user,role:z.role};});}
-  function verify(u,p){var x=users().filter(function(z){return z.user===u&&z.active;})[0];return !!x&&x.hash===hash(p,x.salt);}
-  return{list:list,verify:verify,eyeify:eyeify,init:init,logout:logout,user:function(){return cur;},isAdmin:isAdmin,isDev:isDev,recheck:recheck,accountPanel:accountPanel,usersPanel:usersPanel,del:del,changePw:changePw,add:add,toggle:toggle,reset:reset,
+  function list(){return users().filter(function(z){return z.active;}).map(function(z){return{name:z.name,user:z.user,role:z.role};}).concat(demoPeople());}
+  function verify(u,p){if(isOpen()&&/^demo-/.test(u||''))return true;var x=users().filter(function(z){return z.user===u&&z.active;})[0];return !!x&&x.hash===hash(p,x.salt);}
+  return{isOpen:isOpen,list:list,verify:verify,eyeify:eyeify,init:init,logout:logout,user:function(){return cur;},isAdmin:isAdmin,isDev:isDev,recheck:recheck,accountPanel:accountPanel,usersPanel:usersPanel,del:del,changePw:changePw,add:add,toggle:toggle,reset:reset,
     VER:VER,ver:ver,DEV:DEV,PHONE:PHONE,MAIL:MAIL,DISC:DISC,_sha:sha256};
 })();
 </script>
@@ -1613,7 +1624,7 @@ function sign(o){return new Promise(res=>{const cur=AUTH.user()||{};
    <div class="note" style="margin-bottom:4px">Sign inside the box</div><canvas id="sgC" class="sgc" width="600" height="200"></canvas>
    <div id="sgM" class="gmsg"></div><div class="acts" style="margin-top:4px"><button class="pri" onclick="sgOk()">Sign</button><button onclick="sgClear()">Clear</button><button onclick="sgCancel()">Cancel</button></div>`);
   sgInit();sgPw();});}
-function sgPw(){const u=$('sgU').value,cur=AUTH.user()||{},need=PRO&&u!==cur.user;$('sgPwL').hidden=!need;}
+function sgPw(){const u=$('sgU').value,cur=AUTH.user()||{},need=PRO&&u!==cur.user&&!(AUTH.isOpen&&AUTH.isOpen()&&/^demo-/.test(u));$('sgPwL').hidden=!need;}
 function sgInit(){const c=$('sgC'),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#0b1f3a';x.lineWidth=4;x.lineCap='round';x.lineJoin='round';let dn=false;
   const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
   c.onpointerdown=e=>{dn=true;c.setPointerCapture(e.pointerId);const[a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+0.1,b+0.1);x.stroke();sg.drawn=true;};
@@ -2315,7 +2326,7 @@ function ccPdf(){return pdfReport('CHANGE CONTROL RECORD',S.set.biz,[{table:{hea
   rows:S.cc.map(c=>[c.no,fd(isoOf(c.t)),c.desc,c.reason,c.docs,c.risk,c.qa?c.qa.n:'—',c.prod?c.prod.n:'—',c.impl?fd(c.impl):'—',c.status])}}]);}
 
 /* ================= PRO: training / competency ================= */
-function trainedOk(user,role,task){if(role==='Administrator'||role==='Developer')return true;return S.train.some(t=>t.user===user&&t.task===task&&t.result==='Pass'&&t.valid>=today());}
+function trainedOk(user,role,task){if(role==='Administrator'||role==='Developer')return true;if(AUTH.isOpen&&AUTH.isOpen()&&/^demo-/.test(user||''))return true;return S.train.some(t=>t.user===user&&t.task===task&&t.result==='Pass'&&t.valid>=today());}
 let tr=null;
 function vTrain(){const us=AUTH.list().filter(u=>u.role!=='Developer');
   return `<div class="acts top"><button onclick="go('qa')">← Quality</button></div><h2>Training</h2><div class="note" style="margin-bottom:10px">Only trained people can sign for a task. Admin and Developer do not need training.</div>
@@ -2578,7 +2589,7 @@ const IS_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAD8CAIAAABrbhm
   const webview=/; wv\)|\bwv\b.*Chrome/.test(navigator.userAgent||'');if(webview||(inFrame&&!window.claude)){const n=$('viewerNote');if(n)n.hidden=false;}})();
 S=load();if(!S._fresh&&S.demo&&S.recipes.length&&S.recipes.every(r=>OLD_DEMO.includes(r.id))){S=fix(blank());S._fresh=true;}if(S._fresh){delete S._fresh;seedDemo();}demoLogFix();howFix();save();
 render();
-AUTH.init({key:'vld_bqc',product:'Batch Q',ver:'uF 1.0.0 Demo',demo:'DEMO USE ONLY',app:'Ultra Formulator',logo:IS_LOGO,staffRoles:['Operator','QC Technician','Supervisor','QA Manager','Production Manager'],
+AUTH.init({key:'vld_bqc',product:'Batch Q',ver:'uF 1.0.0 Demo',demo:'DEMO USE ONLY',openDemo:true,app:'Ultra Formulator',logo:IS_LOGO,staffRoles:['Operator','QC Technician','Supervisor','QA Manager','Production Manager'],
   onLogin:()=>{rcv.by=rcv.by||me();go('prod');sysLogin();},onLogout:()=>{hideModal();},refresh:()=>render(),onUsers:()=>cloudQueue(),vldLogo:VLD_LOGO});
 cloudInit();
 </script>
