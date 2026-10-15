@@ -222,6 +222,9 @@ html[data-tone=light] input[type=date]{color-scheme:light}
 .thm i{width:34px;height:34px;border-radius:8px;flex:0 0 auto;border:2px solid #fff;box-shadow:0 0 0 1px #999}
 .thm button.sel{outline:3px solid var(--gold)}
 .sitem.dlock{opacity:.6}.sitem.dlock small{filter:blur(3px)}
+.gdemo{display:inline-block;margin-top:8px;padding:4px 12px;border:1px solid var(--warn);border-radius:6px;color:var(--warn);font-weight:700;letter-spacing:1px;font-size:13px}.hdemo{color:var(--warn);font-weight:700;letter-spacing:.6px;font-size:12px;border:1px solid var(--warn);border-radius:5px;padding:2px 6px;margin:4px 0 6px;align-self:flex-start;width:max-content;display:inline-block}
+.glogo{background:#fff;border-radius:12px;padding:8px 12px;width:100%;max-width:250px;aspect-ratio:640/350;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}.glogo img{width:100%;height:100%;object-fit:contain;display:block}.gvlogo{margin-bottom:28px}
+.vbar{font-size:14px;padding-top:7px}button,a.btn{font-size:16px;min-height:46px}button.sm{min-height:44px;padding:6px 12px;font-size:15px}button.big{font-size:16px;padding:8px 16px}
 </style>
 </head>
 <body>
@@ -245,7 +248,7 @@ html[data-tone=light] input[type=date]{color-scheme:light}
 <div id="viewerNote" class="vnote" hidden>Camera, scan and file upload are switched off in this viewer. To use Scan and ↑ Attach file, open <b>Batch Q</b> in <b>Chrome</b>.</div>
 <main id="main"></main>
 <footer>
-  <div class="nm">Vanguard Logic Development<div class="ct">Batch Q uF 1.0.0 Client Demo</div></div>
+  <div class="nm">Vanguard Logic Development<div class="ct">uF 1.0.0 Demo</div></div>
   <div class="dc">© 2026 Vanguard Logic Development. All rights reserved. For illustration only, not to scale. No copying or distribution without written permission.</div>
 </footer>
 <div class="vbar"><b>Vanguard Logic Development</b> - All Rights Reserved</div>
@@ -539,11 +542,11 @@ var XL=(function(){
   function download(name,sheets,title){var b=build(sheets,title),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href);},3000);}
   return{build:build,download:download};
 })();
-/* ===== Batch Q uF 1.0.0 Client Demo — start-up screen, sign-in and user accounts (shared by the Store and Production apps) =====
+/* ===== Batch Q uF 1.0.0 Demo — start-up screen, sign-in and user accounts (shared by the Store and Production apps) =====
    Passwords are never stored: only a salted SHA-256 hash. Roles: Developer (full access), Administrator (client admin), User (Operator / Manager). */
 var AUTH=(function(){
   var cfg=null,cur=null,fails=0,lockUntil=0;
-  var VER='Batch Q uF 1.0.0 Client Demo',DEV='Vanguard Logic Development',PHONE='+94 771 512 933',MAIL='migiecmb@gmail.com',
+  var VER='uF 1.0.0 Demo',DEV='Vanguard Logic Development',PHONE='+94 771 512 933',MAIL='migiecmb@gmail.com',
       DISC='© 2026 Vanguard Logic Development. All rights reserved. For illustration only, not to scale. No copying or distribution without written permission.';
   /* --- SHA-256 (pure JS, works offline and in every browser) --- */
   function sha256(str){var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
@@ -587,7 +590,7 @@ var AUTH=(function(){
   function msg(t,ok){var m=g('gmsg');if(m){m.textContent=t;m.style.color=ok?'var(--ok)':'var(--bad)';}}
   function foot(){return '<div class="gfoot"><div><b>'+DEV+'</b> - All Rights Reserved</div><div class="gdisc">'+DISC+'</div></div>';}
   function brand(){return (cfg.vldLogo?'<div class="gvlogo"><img src="'+cfg.vldLogo+'" alt="'+DEV+'"></div>':'<div class="gtop">'+DEV+'</div>')+(cfg.logo?'<div class="glogo"><img src="'+cfg.logo+'" alt="'+e(cfg.product)+'"></div>':'<div class="gname">'+e(cfg.product)+'</div>')+
-    (canSave()?'':'<div class="gwarn">This view cannot save data. Download the file and open it in Chrome to keep your accounts and stock records.</div>')+'<div class="gapp">'+e(cfg.app)+'</div><div class="gver">'+ver()+'</div>';}
+    (canSave()?'':'<div class="gwarn">This view cannot save data. Download the file and open it in Chrome to keep your accounts and stock records.</div>')+'<div class="gapp">'+e(cfg.app)+'</div><div class="gver">'+ver()+'</div>'+(cfg.demo?'<div class="gdemo">'+e(cfg.demo)+'</div>':'');}
   /* --- screens --- */
   function show(){var gt=g('gate');gt.hidden=false;g('app').hidden=true;}
   function splash(){show();g('gate').innerHTML='<div class="gbox">'+brand()+'<div class="gload"><i></i></div></div>'+foot();
@@ -624,7 +627,7 @@ var AUTH=(function(){
     if(mode==='user'&&!isStaff(x.role))return msg((x.role==='Developer'?'Developers':'Admins')+' sign in on the '+(x.role==='Developer'?'Developer':'Admin')+' screen.');
     fails=0;finish(x);}
   function finish(x){cur=x;setSess(x.user);g('gate').hidden=true;g('app').hidden=false;bar();if(cfg.onLogin)cfg.onLogin(x);}
-  function bar(){var b=g('hbar');if(b)b.innerHTML='<span class="hver">'+ver()+'</span><span class="huser">'+e(cur.name)+' · '+e(cur.role)+'</span><button class="sm" onclick="AUTH.logout()">Log Out</button>';}
+  function bar(){var b=g('hbar');if(b)b.innerHTML='<span class="hver">'+ver()+'</span>'+(cfg.demo?'<span class="hdemo">'+e(cfg.demo)+'</span>':'')+'<button class="sm" onclick="AUTH.logout()">Log Out</button>';}
   /* a login deleted or disabled on another phone (cloud) is signed out here too */
   function recheck(){if(!cur)return;var x=users().filter(function(z){return z.user===cur.user;})[0];
     if(!x||!x.active){logout();if(window.toast)window.toast('Your login was deleted or stopped. Ask the Admin.');return;}
@@ -1014,7 +1017,7 @@ function pdfJpegs(pages,title){const enc=new TextEncoder(),parts=[],offs=[];let 
   const W=595.28,H=841.89,N=pages.length;push('%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n');
   obj(1,()=>push('<< /Type /Catalog /Pages 2 0 R >>'));
   obj(2,()=>push('<< /Type /Pages /Kids ['+pages.map((_,i)=>(4+i*3)+' 0 R').join(' ')+'] /Count '+N+' >>'));
-  obj(3,()=>push('<< /Title ('+String(title).replace(/[^\x20-\x7e]/g,'').replace(/[()\\]/g,'')+') /Author (Vanguard Logic Development) /Producer (Batch Q uF 1.0.0 Client Demo) >>'));
+  obj(3,()=>push('<< /Title ('+String(title).replace(/[^\x20-\x7e]/g,'').replace(/[()\\]/g,'')+') /Author (Vanguard Logic Development) /Producer (Batch Q uF 1.0.0 Demo) >>'));
   pages.forEach((p,i)=>{const pn=4+i*3,cn=pn+1,im=pn+2,cs='q '+W+' 0 0 '+H+' 0 0 cm /Im0 Do Q';
     obj(pn,()=>push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /XObject << /Im0 '+im+' 0 R >> >> /Contents '+cn+' 0 R >>'));
     obj(cn,()=>{push('<< /Length '+cs.length+' >>\nstream\n');push(cs);push('\nendstream');});
@@ -2511,7 +2514,7 @@ const IS_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAD8CAIAAABrbhm
   const webview=/; wv\)|\bwv\b.*Chrome/.test(navigator.userAgent||'');if(webview||(inFrame&&!window.claude)){const n=$('viewerNote');if(n)n.hidden=false;}})();
 S=load();if(!S._fresh&&S.demo&&S.recipes.length&&S.recipes.every(r=>OLD_DEMO.includes(r.id))){S=fix(blank());S._fresh=true;}if(S._fresh){delete S._fresh;seedDemo();}save();
 render();
-AUTH.init({key:'vld_bqc',product:'Batch Q',ver:'Batch Q uF 1.0.0 Client Demo',app:'Ultra Formulator',logo:IS_LOGO,staffRoles:['Operator','QC Technician','Supervisor','QA Manager','Production Manager'],
+AUTH.init({key:'vld_bqc',product:'Batch Q',ver:'uF 1.0.0 Demo',demo:'DEMO USE ONLY',app:'Ultra Formulator',logo:IS_LOGO,staffRoles:['Operator','QC Technician','Supervisor','QA Manager','Production Manager'],
   onLogin:()=>{rcv.by=rcv.by||me();go('prod');sysLogin();},onLogout:()=>{hideModal();},refresh:()=>render(),onUsers:()=>cloudQueue(),vldLogo:VLD_LOGO});
 cloudInit();
 </script>
