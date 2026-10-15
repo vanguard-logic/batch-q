@@ -797,7 +797,7 @@ function newBatNo(d){return seqNo(S.seq.BAT,'B'+d5(d||today()),x=>S.batches.some
 function peekGrn(d){const k='G'+d5(d||today());return k+'-'+((S.seq.GRN[k]||0)+1);}
 function newGrnNo(d){return seqNo(S.seq.GRN,'G'+d5(d||today()),x=>S.lots.some(l=>l.grn===x));}
 
-let S=load();if(!S._fresh&&S.demo&&S.recipes.length&&S.recipes.every(r=>OLD_DEMO.includes(r.id))){S=fix(blank());S._fresh=true;}if(S._fresh){delete S._fresh;seedDemo();}save();
+let S=load();if(!S._fresh&&S.demo&&S.recipes.length&&S.recipes.every(r=>OLD_DEMO.includes(r.id))){S=fix(blank());S._fresh=true;}if(S._fresh){delete S._fresh;seedDemo();}demoLogFix();save();
 let view='prod',param=null,showUsed=false,retView=null,lastGrn=null,itemPre=null,reqF='open';
 let rcv=newRcv();
 let rq={cat:null,rec:null,size:null,plan:today(),note:''};
@@ -817,7 +817,7 @@ function takeLots(itemId,picks,ref,by,ex,t){picks.forEach(p=>{const l=lot(p.lotI
 function plan(r,size){return r.lines.map(l=>{const it=item(l.item);if(!it)return{missing:true};return{it,need:r6(cv(l.qty*size,l.unit,it.unit))};});}
 
 /* ================= router ================= */
-const NAVMAP={batch:'prod',reqNew:'req',reqView:'req',item:'items',lot:'items',itemEdit:'items',recipe:'recipes',recEdit:'recipes',histRep:'hist',imp:'set'};
+const NAVMAP={batch:'prod',reqNew:'req',reqView:'req',item:'items',lot:'items',itemEdit:'items',recipe:'recipes',recEdit:'recipes',histRep:'hist',imp:'set',plog:'prod'};
 const ADMIN_VIEWS=['itemEdit','recEdit','imp'];
 function go(v,p){itemPre=null;view=v;param=p==null?null:p;window.scrollTo(0,0);render();}
 function render(){
@@ -825,14 +825,14 @@ function render(){
   const nv=NAVMAP[view]||view;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===nv));
   const V={prod:vProd,batch:vBatch,req:vReq,reqNew:vReqNew,reqView:vReqView,recv:vRecv,items:vItems,item:vItem,lot:vLot,itemEdit:vItemEdit,
-    recipes:vRecipes,recipe:vRecipe,recEdit:vRecEdit,scan:vScan,hist:vHist,histRep:vHistRep,set:vSet,imp:vImp};
+    recipes:vRecipes,recipe:vRecipe,recEdit:vRecEdit,scan:vScan,hist:vHist,histRep:vHistRep,set:vSet,imp:vImp,plog:vPlog};
   $('main').innerHTML=(V[view]||vProd)();}
 function tile(k,l,n,c){return `<button class="tile ${reqF===k?'on':''} ${n&&c?c:''}" onclick="reqF='${k}';render()"><b>${n}</b><span>${l}</span></button>`;}
 
 /* ================= PRODUCTION ================= */
 function vProd(){const run=S.batches.filter(b=>b.status==='prod'),ready=S.reqs.filter(r=>(r.status==='open'||r.status==='recv')&&!r.batch),
     done=S.batches.filter(b=>b.status==='done').sort((a,b)=>b.end-a.end).slice(0,30);
-  return `<h2>Production</h2><div class="acts" style="margin:0 0 12px"><button class="pri" onclick="newReq()">+ Requisition</button><button onclick="openScan()">Scan</button></div>
+  return `<h2>Production</h2><div class="acts" style="margin:0 0 12px"><button class="pri" onclick="newReq()">+ Requisition</button><button onclick="openScan()">Scan</button><button onclick="go('plog')">Production Log</button></div>
   <h2>In Production</h2>${run.length?run.map(batchCard).join(''):'<div class="card note">No batch in production.</div>'}
   <h2>Ready to Start</h2>${ready.length?`<div class="card scroll"><table><thead><tr><th>Requisition no.</th><th>Product</th><th>Batch size</th><th>Planned</th><th>Status</th><th></th></tr></thead><tbody>
    ${ready.map(r=>`<tr><td class="mono"><a onclick="go('reqView','${r.id}')">${esc(r.no)}</a></td><td>${esc(r.recName)}</td><td style="white-space:nowrap">${r.size} ${r.unit}</td><td>${fd(r.plan)||'—'}</td><td>${stBadge(r.status)}</td><td><button class="pri sm" onclick="startBatch('${r.id}')">Start</button></td></tr>`).join('')}
@@ -863,27 +863,51 @@ function vBatch(){const b=batchById(param);if(!b)return nf();const r=reqById(b.r
   ${open?'<div class="note" style="margin-bottom:10px">Weigh each ingredient, enter the actual quantity and tap Add. The time is recorded and the lots are taken first-expiry-first. Expired lots are never used.</div>':''}
   ${b.lines.map((l,i)=>bLine(b,l,i)).join('')}
   <div class="card note">Filtered water is not in the ingredient list and is not recorded here.</div>
+  ${logCard(b)}
   ${open?`<div class="acts"><button class="pri big" ${n<b.lines.length?'disabled':''} onclick="finishBatch('${b.id}')">Finish</button></div>${n<b.lines.length?'<div class="note" style="margin-top:8px">Add every ingredient to finish the batch.</div>':''}`:''}`;}
 function bLine(b,l,i){const it=item(l.itemId)||{name:'(deleted ingredient)',sku:'',unit:'kg',id:''};
   if(l.t){const dv=devPct(l),bad=Math.abs(dv)>b.tol+1e-9;
     return `<div class="card ${bad?'wl':'ok'}"><div class="hd"><div><b>${i+1}. ${esc(it.name)}</b> <span class="note">${esc(it.sku)}</span></div><span class="badge ${bad?'b-warn':'b-ok'}">${bad?'OFF TARGET':'ADDED'}</span></div>
      <div class="kv"><span>Target</span><b>${fq(l.target,it.unit)}</b><span>Actual</span><b>${fq(l.actual,it.unit)} (${dv>0?'+':''}${dv.toFixed(1)} %)</b><span>Time added</span><b>${fdt(l.t)}:${p2(new Date(l.t).getSeconds())}</b>
-      <span>Lot(s)</span><b>${l.lots.map(k=>{const x=lot(k.lotId);return x?`<a onclick="go('lot','${x.id}')">${esc(x.lot)}</a> · ${fq(k.q,it.unit)}`:'—';}).join('<br>')||'—'}</b><span>Added by</span><b>${esc(l.by||'—')}</b></div></div>`;}
+      <span>Lot(s)</span><b>${l.lots.map(k=>{const x=lot(k.lotId);return x?`<a onclick="go('lot','${x.id}')">${esc(x.lot)}</a> · ${fq(k.q,it.unit)}`:'—';}).join('<br>')||'—'}</b><span>Temperature</span><b>${l.temp!=null&&l.temp!==''?esc(l.temp)+' °C':'—'}</b>${l.note?`<span>Note</span><b>${esc(l.note)}</b>`:''}<span>Added by</span><b>${esc(l.by||'—')}</b></div></div>`;}
   const u=l.unit||defUnit(it,l.target),av=availQ(it.id),nx=usableLots(it.id)[0],k=b.id+':'+i;
   return `<div class="card"><div class="hd"><div><b>${i+1}. ${esc(it.name)}</b> <span class="note">${esc(it.sku)}</span></div><span class="badge b-warn">TO ADD</span></div>
    <div class="kv"><span>Target</span><b>${fq(l.target,it.unit)}</b><span>Available in lots</span><b>${fq(av,it.unit)}${av+1e-9<l.target?' <span class="badge b-bad">SHORT</span>':''}</b><span>Next lot</span><b>${nx?esc(nx.lot)+(nx.exp?' · exp '+fd(nx.exp)+expTag(nx.exp):''):'—'}</b></div>
-   ${b.status==='prod'?`<label style="margin:10px 0 0">Actual quantity<div class="row"><input id="ba${i}" type="number" min="0" step="any" inputmode="decimal" placeholder="${r6(cv(l.target,it.unit,u))}" value="${esc((bq[k]||{}).v||'')}" oninput="bq['${k}']=Object.assign(bq['${k}']||{},{v:this.value})"><select id="bu${i}" onchange="bq['${k}']=Object.assign(bq['${k}']||{},{u:this.value})">${units(it.unit).map(x=>`<option ${x===((bq[k]||{}).u||u)?'selected':''}>${x}</option>`).join('')}</select><button class="pri" onclick="addLine('${b.id}',${i})">Add</button></div></label>`:''}</div>`;}
+   ${b.status==='prod'?`<label style="margin:10px 0 0">Actual quantity<div class="row"><input id="ba${i}" type="number" min="0" step="any" inputmode="decimal" placeholder="${r6(cv(l.target,it.unit,u))}" value="${esc((bq[k]||{}).v||'')}" oninput="bq['${k}']=Object.assign(bq['${k}']||{},{v:this.value})"><select id="bu${i}" onchange="bq['${k}']=Object.assign(bq['${k}']||{},{u:this.value})">${units(it.unit).map(x=>`<option ${x===((bq[k]||{}).u||u)?'selected':''}>${x}</option>`).join('')}</select></div></label>
+   <div class="two" style="margin-top:8px"><label>Temperature (°C)<input id="bt${i}" type="number" step="any" inputmode="decimal" value="${esc((bq[k]||{}).tp||'')}" oninput="bq['${k}']=Object.assign(bq['${k}']||{},{tp:this.value})"></label>
+   <label>Note (optional)<input id="bn${i}" value="${esc((bq[k]||{}).nt||'')}" oninput="bq['${k}']=Object.assign(bq['${k}']||{},{nt:this.value})"></label></div>
+   <div class="acts" style="margin-top:4px"><button class="pri" onclick="addLine('${b.id}',${i})">Add</button></div>`:''}</div>`;}
 async function addLine(bid,i){const b=batchById(bid),l=b&&b.lines[i],it=l&&item(l.itemId);if(!it||l.t||b.status!=='prod')return;
-  const v=+$('ba'+i).value,u=$('bu'+i).value;if(!(v>0))return toast('Enter the actual quantity');
+  const v=+$('ba'+i).value,u=$('bu'+i).value,tp=$('bt'+i).value.trim(),nt=$('bn'+i).value.trim();if(!(v>0))return toast('Enter the actual quantity');if(tp===''||isNaN(+tp))return toast('Enter the temperature');
   const q=r6(cv(v,u,it.unit)),dv=l.target>0?(q-l.target)/l.target*100:0;
   if(Math.abs(dv)>b.tol+1e-9&&!(await ask(`${it.name}: ${fq(q,it.unit)} is ${dv>0?'+':''}${dv.toFixed(1)} % from the target ${fq(l.target,it.unit)} (limit ± ${b.tol} %). Add anyway?`,'Add')))return;
   const a=allocate(it.id,q);if(a.short)return toast('Only '+fq(a.avail,it.unit)+' of '+it.name+' in received lots. Receive more first.');
-  const t=Date.now();l.actual=q;l.unit=u;l.t=t;l.by=me();l.lots=a.picks;delete bq[b.id+':'+i];
+  const t=Date.now();l.actual=q;l.unit=u;l.t=t;l.by=me();l.lots=a.picks;l.temp=tp;l.note=nt;delete bq[b.id+':'+i];
   takeLots(it.id,a.picks,`Batch ${b.no} · ${b.recName} ${b.size} ${b.unit}`,me(),{prod:b.rec,batch:b.id,req:b.req},t);
   save();render();toast(it.name+' added at '+ftm(t));}
 async function finishBatch(id){const b=batchById(id);if(!b||b.lines.some(l=>!l.t))return;
   const o=outTol(b);if(!(await ask(`Finish batch ${b.no}?${o?` ${o} ingredient(s) are off target.`:''}`,'Finish')))return;
   b.status='done';b.end=Date.now();const r=reqById(b.req);if(r)r.status='done';save();render();toast('Batch '+b.no+' completed');}
+
+/* ================= PRODUCTION LOG — every ingredient added: time, temperature, lot, person. Batch details come from the requisition ================= */
+function logHead(b){const r=reqById(b.req);return [['Business',S.set.biz||'—'],['Batch no.',b.no],['Product',b.recName],['Batch size',b.size+' '+b.unit],['Requisition no.',r?r.no:'—'],['Requisition date',r?fd(r.date):'—'],
+  ['Planned production',r&&r.plan?fd(r.plan):'—'],['Requested by',r?(r.by||'—'):'—'],['Started',b.start?fdt(b.start)+' · '+(b.by||'—'):'—'],['Finished',b.end?fdt(b.end):'—'],['Ingredients added',b.lines.filter(l=>l.t).length+' of '+b.lines.length]];}
+function logRows(b){return b.lines.map((l,i)=>{const it=item(l.itemId)||{name:'(deleted ingredient)',unit:'kg'};
+  return [String(i+1),it.name+(l.note?' — '+l.note:''),l.t?l.lots.map(k=>(lot(k.lotId)||{}).lot||'').filter(Boolean).join(', ')||'—':'—',fq(l.target,it.unit),l.t?fq(l.actual,it.unit):'—',l.t?ftm(l.t):'—',l.t&&l.temp!=null&&l.temp!==''?String(l.temp):'—',l.t?(l.by||'—'):'—'];});}
+function logCard(b){const rows=logRows(b);
+  return `<h2>Production Log</h2><div class="card"><div class="kv">${logHead(b).map(([k,v])=>`<span>${esc(k)}</span><b>${esc(v)}</b>`).join('')}</div></div>
+  <div class="card scroll"><table><thead><tr><th>#</th><th>Ingredient</th><th>Lot no.</th><th>Target</th><th>Actual</th><th>Time</th><th>Temp °C</th><th>Added by</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr>${r.map((v,j)=>`<td${j===2||j===5?' class="mono"':''}${j>=3&&j<=6?' style="white-space:nowrap"':''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+  <div class="acts"><button class="pri" onclick="logOut('${b.id}')">Log PDF</button></div></div>`;}
+function logPdf(b){return docPdf('PRODUCTION LOG',b.no,logHead(b),['#','Ingredient','Lot no.','Target','Actual','Time','Temp °C','Added by'],[60,318,220,150,150,140,130,250],['l','l','l','r','r','l','r','l'],logRows(b));}
+function logOut(id){const b=batchById(id);if(!b)return;fileBox('Production Log',null,'Production log '+b.no+' — '+b.recName+' '+b.size+' '+b.unit,'','');
+  logPdf(b).then(x=>setShareFile(new File([x],'Production-Log-'+b.no+'.pdf',{type:'application/pdf'}))).catch(e=>setShareFile(null,e));}
+function vPlog(){const list=S.batches.slice().sort((a,b)=>(b.start||0)-(a.start||0));
+  return `<div class="acts top"><button onclick="go('prod')">← Production</button></div><h2>Production Log</h2>
+  <div class="note" style="margin-bottom:10px">Each batch has a log of every ingredient added: time, temperature, lot and person. Tap a batch to open it.</div>
+  ${list.length?`<div class="card scroll"><table><thead><tr><th>Date</th><th>Batch no.</th><th>Product</th><th>Batch size</th><th>Added</th><th>Status</th></tr></thead><tbody>
+  ${list.map(b=>`<tr class="click" onclick="go('batch','${b.id}')"><td style="white-space:nowrap">${b.start?fdt(b.start):'—'}</td><td class="mono">${esc(b.no)}</td><td>${esc(b.recName)}</td><td style="white-space:nowrap">${b.size} ${b.unit}</td><td>${b.lines.filter(l=>l.t).length} of ${b.lines.length}</td><td>${b.status==='done'?'<span class="badge b-ok">Completed</span>':'<span class="badge b-warn">In production</span>'}</td></tr>`).join('')}
+  </tbody></table></div>`:'<div class="card note">No batches yet.</div>'}`;}
 
 /* ================= REQUISITION ================= */
 function vReq(){const f=reqF,cnt=k=>S.reqs.filter(r=>k==='all'||(k==='open'?(r.status==='open'||r.status==='recv'):r.status===k)).length;
@@ -1417,6 +1441,17 @@ function xlHistBlob(){const list=histList(),cols=['Date & time','Type','Ingredie
   return XL.build([{name:'Movements',freeze:5,widths:[17,12,32,10,17,14,12,11,6,26,14,15,16],rows:rows.concat(xlFoot(cols.length))}],'Ingredient movement report');}
 
 /* ================= DEMO DATA (first start only; removable in Settings) ================= */
+/* demo: one batch in production with 2 ingredients already added, so the production log can be seen */
+function demoRun(){const r=recipe('icedtea');if(!r)return;const P=plan(r,10);if(P.some(p=>p.missing))return;const dt=today(),t=Date.now()-50*60000,SK='Demo Operator',MG='Demo Manager';
+  const x={id:rid(),no:newReqNo(dt),t,date:dt,plan:dt,rec:r.id,recName:r.name,size:10,unit:'L',lines:P.map(p=>({itemId:p.it.id,qty:p.need})),note:'',by:MG,status:'prod',sent:[{via:'WhatsApp',t:t+60000,by:MG}],batch:null,got:dt};S.reqs.push(x);
+  const t0=t+20*60000,b={id:rid(),no:newBatNo(dt),req:x.id,rec:x.rec,recName:x.recName,size:10,unit:'L',status:'prod',start:t0,end:null,by:SK,tol:2,lines:[]};
+  x.lines.forEach((l,n)=>{const i=item(l.itemId),q=r6(l.qty*[1.002,0.998][n%2]),tt=t0+(n+1)*300000,a=n<2?allocate(i.id,q):{short:true};
+    if(n<2&&!a.short){takeLots(i.id,a.picks,`Batch ${b.no} · ${b.recName} 10 L`,SK,{prod:b.rec,batch:b.id,req:x.id},tt);b.lines.push({itemId:i.id,target:l.qty,actual:q,unit:defUnit(i,l.qty),t:tt,by:SK,lots:a.picks,temp:['24','25'][n],note:''});}
+    else b.lines.push({itemId:i.id,target:l.qty,actual:null,unit:'',t:null,by:'',lots:[]});});
+  x.batch=b.id;S.batches.push(b);S.reqs.sort((a,b)=>b.t-a.t);S.batches.sort((a,b)=>b.start-a.start);S.moves.sort((a,b)=>b.t-a.t);}
+/* phones that already hold the demo get the temperatures and the running batch once (not when the cloud is on) */
+function demoLogFix(){if(!S.demo||S.set.dlog||cloudWanted())return;S.batches.forEach(b=>b.lines.forEach((l,n)=>{if(l.t&&l.by==='Demo Operator'&&l.temp==null){l.temp=String(24+n%3);l.note='';}}));
+  if(!S.batches.some(b=>b.status==='prod'))demoRun();S.set.dlog=1;}
 function seedDemo(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return x.getFullYear()+'-'+p2(x.getMonth()+1)+'-'+p2(x.getDate());};
   const it=k=>S.items.find(i=>i.key===k),SK='Demo Operator',MG='Demo Manager';
   const plan0=[ // key: [qty, days ago received, days to expiry]...
@@ -1432,9 +1467,9 @@ function seedDemo(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);retu
   [['icedtea',10,12],['lemonade',10,8],['juice',10,3]].forEach(([id,size,ago])=>{const x=mkReq(id,size,ago,'done'),dt=d(-ago),t0=new Date(dt+'T10:00:00').getTime();
     const b={id:rid(),no:newBatNo(dt),req:x.id,rec:x.rec,recName:x.recName,size,unit:'L',status:'done',start:t0,end:0,by:SK,tol:2,lines:[]};
     x.lines.forEach((l,n)=>{const i=item(l.itemId),f=[1.004,0.997,1.001,0.999,1.006,1,0.995,1.003][n%8]*(id==='lemonade'&&n===0?1.035:1),q=r6(l.qty*f),t=t0+(n+1)*240000,a=allocate(i.id,q);
-      takeLots(i.id,a.picks,`Batch ${b.no} · ${b.recName} ${size} L`,SK,{prod:b.rec,batch:b.id,req:x.id},t);b.lines.push({itemId:i.id,target:l.qty,actual:q,unit:defUnit(i,l.qty),t,by:SK,lots:a.picks});});
+      takeLots(i.id,a.picks,`Batch ${b.no} · ${b.recName} ${size} L`,SK,{prod:b.rec,batch:b.id,req:x.id},t);b.lines.push({itemId:i.id,target:l.qty,actual:q,unit:defUnit(i,l.qty),t,by:SK,lots:a.picks,temp:String(24+n%3),note:''});});
     b.end=t0+(x.lines.length+2)*240000;x.batch=b.id;S.batches.push(b);});
-  const r4=mkReq('coldbrew',10,1,'recv');r4.got=d(0);mkReq('icedtea',10,0,'open');
+  const r4=mkReq('coldbrew',10,1,'recv');r4.got=d(0);mkReq('icedtea',10,0,'open');demoRun();S.set.dlog=1;
   S.reqs.sort((a,b)=>b.t-a.t);S.batches.sort((a,b)=>b.start-a.start);S.moves.sort((a,b)=>b.t-a.t);
   S.set.reqPhone='0771512933';S.set.reqEmail='migiecmb@gmail.com';S.demo=true;}
 
